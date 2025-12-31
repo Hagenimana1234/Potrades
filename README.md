@@ -1,0 +1,2 @@
+# Potrades
+Binary trading platform
