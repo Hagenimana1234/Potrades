@@ -210,7 +210,7 @@ export function TradingPanel() {
       {/* Balance Info */}
       <div className="text-center text-sm text-gray-400">
         Available balance:{' '}
-        <span className="text-white font-bold">${balance.toFixed(2)}</span>
+        <span className="text-white font-bold">${(typeof balance === 'number' ? balance : 0).toFixed(2)}</span>
       </div>
     </div>
   );
