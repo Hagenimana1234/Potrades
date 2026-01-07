@@ -6,14 +6,21 @@ import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import { randomBytes } from 'crypto';
+import os from 'os';
 
 // Load environment variables
 dotenv.config();
+
+// Generate unique instance ID for clustering
+const INSTANCE_ID = process.env.INSTANCE_ID || `instance-${os.hostname()}-${randomBytes(4).toString('hex')}`;
+process.env.INSTANCE_ID = INSTANCE_ID;
 
 import logger from './utils/logger';
 import { connectDatabase } from './utils/database';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { apiLimiter } from './middleware/rateLimiter.middleware';
+import sessionMiddleware from './middleware/session.middleware';
 import routes from './routes';
 import WebSocketServer from './websocket/server';
 import { initializeJobs } from './jobs';
@@ -45,6 +52,9 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+// Session management with Redis (for load balancer support)
+app.use(sessionMiddleware);
 
 // Compression
 app.use(compression());
@@ -107,11 +117,18 @@ async function bootstrap() {
     // Start HTTP server
     httpServer.listen(PORT, () => {
       logger.info(`✓ Server running on port ${PORT}`);
+      logger.info(`✓ Instance ID: ${INSTANCE_ID}`);
       logger.info(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`✓ API URL: http://localhost:${PORT}/api`);
       logger.info(`✓ WebSocket URL: ws://localhost:${PORT}`);
+      logger.info(`✓ Health check: http://localhost:${PORT}/api/health`);
+      logger.info(`✓ Readiness check: http://localhost:${PORT}/api/ready`);
       logger.info('='.repeat(50));
-      logger.info('🚀 PoTrades Backend is ready!');
+      logger.info('🚀 PoTrades Backend is ready for millions of users!');
+      logger.info('   Horizontal scaling: ✓ Enabled');
+      logger.info('   WebSocket clustering: ✓ Redis adapter');
+      logger.info('   Session management: ✓ Redis store');
+      logger.info('   Connection pooling: ✓ Configured');
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

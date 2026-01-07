@@ -4,13 +4,12 @@ import tradingController from '../controllers/trading.controller';
 import adminController from '../controllers/admin.controller';
 import { authenticate, requireAdmin } from '../middleware/auth.middleware';
 import { strictLimiter, tradeLimiter } from '../middleware/rateLimiter.middleware';
+import healthRoutes from './health.routes';
 
 const router = Router();
 
-// Health check
-router.get('/health', (req, res) => {
-  res.json({ success: true, message: 'Server is running' });
-});
+// Health check routes (for load balancers)
+router.use('/', healthRoutes);
 
 // ==================== AUTH ROUTES ====================
 router.post('/auth/register', strictLimiter, authController.register);

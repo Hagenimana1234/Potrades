@@ -1,11 +1,14 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { createClient } from 'redis';
 import { verifyAccessToken } from '../utils/crypto';
 import marketDataService from '../services/marketData.service';
 import logger from '../utils/logger';
 
 export class WebSocketServer {
   private io: SocketIOServer;
+  private redisInitialized: boolean = false;
 
   constructor(httpServer: HTTPServer) {
     this.io = new SocketIOServer(httpServer, {
@@ -14,10 +17,46 @@ export class WebSocketServer {
         credentials: true,
       },
       transports: ['websocket', 'polling'],
+      // Enable clustering support
+      connectionStateRecovery: {
+        maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
+        skipMiddlewares: true,
+      },
     });
 
-    this.setupMiddleware();
-    this.setupEventHandlers();
+    this.setupRedisAdapter().then(() => {
+      this.setupMiddleware();
+      this.setupEventHandlers();
+    });
+  }
+
+  /**
+   * Setup Redis adapter for horizontal scaling across multiple instances
+   */
+  private async setupRedisAdapter() {
+    try {
+      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+
+      // Create Redis clients for pub/sub
+      const pubClient = createClient({ url: redisUrl });
+      const subClient = pubClient.duplicate();
+
+      // Handle Redis errors
+      pubClient.on('error', (err) => logger.error('Redis Pub Client Error:', err));
+      subClient.on('error', (err) => logger.error('Redis Sub Client Error:', err));
+
+      // Connect clients
+      await Promise.all([pubClient.connect(), subClient.connect()]);
+
+      // Use Redis adapter for WebSocket clustering
+      this.io.adapter(createAdapter(pubClient, subClient));
+
+      logger.info('✓ WebSocket clustering enabled with Redis adapter');
+      this.redisInitialized = true;
+    } catch (error) {
+      logger.warn('⚠ Redis adapter not initialized, running in single-instance mode');
+      logger.warn('For production with multiple instances, ensure Redis is available');
+    }
   }
 
   private setupMiddleware() {

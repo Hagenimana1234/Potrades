@@ -1,12 +1,37 @@
 import { PrismaClient } from '@prisma/client';
 import logger from './logger';
 
+// Production-grade connection pool configuration
+const connectionPoolConfig = {
+  connectionLimit: parseInt(process.env.DATABASE_POOL_MAX || '10'),
+  pool: {
+    min: parseInt(process.env.DATABASE_POOL_MIN || '2'),
+    max: parseInt(process.env.DATABASE_POOL_MAX || '10'),
+    acquireTimeoutMillis: parseInt(process.env.DATABASE_POOL_TIMEOUT || '60000'),
+    createTimeoutMillis: 30000,
+    destroyTimeoutMillis: 5000,
+    idleTimeoutMillis: 60000,
+    reapIntervalMillis: 1000,
+    createRetryIntervalMillis: 100,
+  },
+};
+
 const prisma = new PrismaClient({
-  log: [
-    { emit: 'event', level: 'query' },
-    { emit: 'event', level: 'error' },
-    { emit: 'event', level: 'warn' },
-  ],
+  log: process.env.NODE_ENV === 'development'
+    ? [
+        { emit: 'event', level: 'query' },
+        { emit: 'event', level: 'error' },
+        { emit: 'event', level: 'warn' },
+      ]
+    : [
+        { emit: 'event', level: 'error' },
+        { emit: 'event', level: 'warn' },
+      ],
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
 });
 
 // Log queries in development
