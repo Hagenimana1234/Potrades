@@ -98,7 +98,7 @@ export function TradingDashboard() {
 
   const menuItems = [
     { icon: BarChart3, label: 'Trading', action: () => setActiveView('chart') },
-    { icon: Wallet, label: 'Finance', action: () => {} },
+    { icon: Wallet, label: 'Finance', action: () => window.location.href = '/finance' },
     { icon: User, label: 'Profile', action: () => {} },
     { icon: ShoppingBag, label: 'Market', action: () => {} },
     { icon: Trophy, label: 'Tournaments', action: () => {} },

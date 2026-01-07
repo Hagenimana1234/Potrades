@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { LoginPage } from './pages/LoginPage';
 import { TradingDashboard } from './pages/TradingDashboard';
+import { FinancePage } from './pages/FinancePage';
 import { useAuthStore } from './store/authStore';
 
 const queryClient = new QueryClient({
@@ -42,6 +43,14 @@ function App() {
             element={
               <PrivateRoute>
                 <TradingDashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/finance"
+            element={
+              <PrivateRoute>
+                <FinancePage />
               </PrivateRoute>
             }
           />

@@ -74,6 +74,37 @@ export const walletAPI = {
   getTransactions: (params?: any) => api.get('/wallet/transactions', { params }),
 };
 
+// Finance API
+export const financeAPI = {
+  // Platform wallets
+  getPlatformWallets: () => api.get('/finance/wallets'),
+
+  // Deposits
+  createDeposit: (data: any) => api.post('/finance/deposits', data),
+  getDeposits: (params?: any) => api.get('/finance/deposits', { params }),
+  getDepositById: (id: string) => api.get(`/finance/deposits/${id}`),
+
+  // Withdrawals
+  createWithdrawal: (data: any) => api.post('/finance/withdrawals', data),
+  getWithdrawals: (params?: any) => api.get('/finance/withdrawals', { params }),
+  getWithdrawalById: (id: string) => api.get(`/finance/withdrawals/${id}`),
+
+  // Transactions & P&L
+  getTransactions: (params?: any) => api.get('/finance/transactions', { params }),
+  getPnL: () => api.get('/finance/pnl'),
+
+  // Admin endpoints
+  getPendingDeposits: () => api.get('/finance/admin/deposits/pending'),
+  approveDeposit: (id: string) => api.post(`/finance/admin/deposits/${id}/approve`),
+  rejectDeposit: (id: string, rejectionReason: string) =>
+    api.post(`/finance/admin/deposits/${id}/reject`, { rejectionReason }),
+  getPendingWithdrawals: () => api.get('/finance/admin/withdrawals/pending'),
+  approveWithdrawal: (id: string, txHash?: string) =>
+    api.post(`/finance/admin/withdrawals/${id}/approve`, { txHash }),
+  rejectWithdrawal: (id: string, rejectionReason: string) =>
+    api.post(`/finance/admin/withdrawals/${id}/reject`, { rejectionReason }),
+};
+
 // Copy Trading API
 export const copyTradingAPI = {
   getTraders: (params?: any) => api.get('/copy-trading/traders', { params }),
