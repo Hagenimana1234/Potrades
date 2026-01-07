@@ -226,7 +226,7 @@ export function TradingDashboard() {
                 <div className="text-xs text-gray-400">
                   {walletType === 'DEMO' ? 'Demo Balance' : 'Real Balance'}
                 </div>
-                <div className="text-2xl font-bold">${balance.toFixed(2)}</div>
+                <div className="text-2xl font-bold">${(typeof balance === 'number' ? balance : 0).toFixed(2)}</div>
               </div>
 
               <button className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold transition-colors">

@@ -65,10 +65,10 @@ export const useTradingStore = create<TradingState>((set) => ({
 
   setExpirySeconds: (seconds) => set({ expirySeconds: seconds }),
 
-  setWalletType: (type) => set({
+  setWalletType: (type) => set((state) => ({
     walletType: type,
-    balance: type === 'DEMO' ? (state: any) => state.demoBalance : (state: any) => state.realBalance
-  }),
+    balance: type === 'DEMO' ? state.demoBalance : state.realBalance
+  })),
 
   setActiveTrades: (trades) => set({ activeTrades: trades }),
 
