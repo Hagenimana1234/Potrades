@@ -1,5 +1,6 @@
-// Production-Grade Binary Options Trading Platform Schema
+// Production-Grade Forex/Crypto OTC Trading Platform Schema
 // This schema is designed for high-performance, ACID-compliant operations
+// Supports: Forex (Twelve Data), Crypto (Binance), Manual Payments, Signals, Savings, Support
 
 generator client {
   provider = "prisma-client-js"
@@ -87,6 +88,8 @@ model User {
   notifications     Notification[]
   withdrawals       Withdrawal[]
   deposits          Deposit[]
+  savingsDeposits   SavingsDeposit[]
+  supportTickets    SupportTicket[]
 
   @@index([email])
   @@index([referralCode])
@@ -198,9 +201,23 @@ model Transaction {
 enum PaymentMethod {
   CREDIT_CARD
   BANK_TRANSFER
-  CRYPTO
+  CRYPTO_BTC
+  CRYPTO_ETH
+  CRYPTO_USDT_TRC20
+  CRYPTO_USDT_ERC20
+  CRYPTO_USDT_BEP20
+  CRYPTO_SOL
   E_WALLET
   OTHER
+}
+
+enum CryptoNetwork {
+  BTC
+  ETH
+  TRC20  // USDT on Tron
+  ERC20  // USDT on Ethereum
+  BEP20  // USDT on BSC
+  SOL    // Solana
 }
 
 enum DepositStatus {
@@ -219,10 +236,21 @@ model Deposit {
   method          PaymentMethod
   status          DepositStatus @default(PENDING)
 
-  // Payment Gateway
+  // Crypto-specific (Manual verification)
+  cryptoNetwork   CryptoNetwork?
+  txHash          String?       // Transaction hash submitted by user
+  walletAddress   String?       // Platform wallet address used
+  uploadedProof   String?       // Screenshot/proof URL
+
+  // Payment Gateway (for non-crypto)
   gatewayProvider String?       // stripe, coinbase, etc.
   gatewayTxId     String?       @unique
   gatewayResponse Json?
+
+  // Admin approval
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
 
   // Metadata
   metadata        Json?
@@ -233,6 +261,7 @@ model Deposit {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  @@index([txHash])
 }
 
 enum WithdrawalStatus {
@@ -256,6 +285,11 @@ model Withdrawal {
   // Destination
   destination     Json             // Bank account, crypto address, etc.
 
+  // Crypto-specific
+  cryptoNetwork   CryptoNetwork?
+  cryptoAddress   String?          // User's crypto wallet address
+  txHash          String?          // Transaction hash after processing
+
   // Approval
   approvedBy      String?
   approvedAt      DateTime?
@@ -275,6 +309,7 @@ model Withdrawal {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  @@index([txHash])
 }
 
 // ==================== TRADING ENGINE ====================
@@ -316,6 +351,8 @@ model Asset {
   // Relations
   prices          Price[]
   trades          Trade[]
+  signals         Signal[]
+  otcConfig       OTCPricingConfig?
 
   @@index([symbol])
   @@index([type])
@@ -722,4 +759,321 @@ model RiskAlert {
   @@index([severity])
   @@index([isResolved])
   @@index([createdAt])
+}
+
+// ==================== SIGNALS MODULE ====================
+
+enum SignalType {
+  BUY
+  SELL
+  HOLD
+}
+
+enum SignalStatus {
+  ACTIVE
+  CLOSED
+  EXPIRED
+  CANCELLED
+}
+
+model Signal {
+  id              String       @id @default(cuid())
+  createdBy       String       // Admin or analyst user ID
+  assetId         String
+  asset           Asset        @relation(fields: [assetId], references: [id])
+
+  // Signal details
+  type            SignalType
+  status          SignalStatus @default(ACTIVE)
+  entryPrice      Decimal      @db.Decimal(20, 8)
+  targetPrice     Decimal?     @db.Decimal(20, 8)
+  stopLoss        Decimal?     @db.Decimal(20, 8)
+
+  // Performance
+  exitPrice       Decimal?     @db.Decimal(20, 8)
+  profitPercent   Decimal?     @db.Decimal(10, 4)
+
+  // Metadata
+  title           String
+  description     String?
+  timeframe       String?      // 1H, 4H, 1D, etc.
+  tags            String[]     @default([])
+
+  // Timing
+  expiresAt       DateTime?
+  closedAt        DateTime?
+
+  // Stats
+  viewCount       Int          @default(0)
+  copyCount       Int          @default(0)
+
+  // Relations
+  subscribers     SignalSubscription[]
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([assetId])
+  @@index([status])
+  @@index([createdBy])
+  @@index([createdAt])
+}
+
+model SignalSubscription {
+  id              String   @id @default(cuid())
+  userId          String
+  signalId        String
+  signal          Signal   @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  // Copy trade settings
+  autoCopy        Boolean  @default(false)
+  copyAmount      Decimal? @db.Decimal(20, 8)
+
+  subscribedAt    DateTime @default(now())
+
+  @@unique([userId, signalId])
+  @@index([userId])
+  @@index([signalId])
+}
+
+// ==================== MY SAFE (SAVINGS) MODULE ====================
+
+enum SavingsPlanType {
+  FIXED        // Fixed term with lock period
+  FLEXIBLE     // Can withdraw anytime
+}
+
+enum SavingsPlanStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model SavingsPlan {
+  id                String            @id @default(cuid())
+  name              String
+  type              SavingsPlanType
+  status            SavingsPlanStatus @default(ACTIVE)
+
+  // Interest
+  annualRate        Decimal           @db.Decimal(5, 2) // Annual interest rate %
+  compoundFrequency String            @default("DAILY") // DAILY, WEEKLY, MONTHLY
+
+  // Limits
+  minAmount         Decimal           @db.Decimal(20, 8)
+  maxAmount         Decimal?          @db.Decimal(20, 8)
+
+  // Lock period (for FIXED plans)
+  lockDays          Int?              // Number of days locked
+  earlyWithdrawalFee Decimal?         @db.Decimal(5, 2) // Early withdrawal penalty %
+
+  // Display
+  description       String?
+  icon              String?
+  order             Int               @default(0)
+
+  // Relations
+  deposits          SavingsDeposit[]
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([status])
+  @@index([type])
+}
+
+enum SavingsDepositStatus {
+  ACTIVE
+  MATURED
+  WITHDRAWN
+  CLOSED
+}
+
+model SavingsDeposit {
+  id                String               @id @default(cuid())
+  userId            String
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              SavingsPlan          @relation(fields: [planId], references: [id])
+  status            SavingsDepositStatus @default(ACTIVE)
+
+  // Amounts
+  principal         Decimal              @db.Decimal(20, 8)
+  accruedInterest   Decimal              @default(0) @db.Decimal(20, 8)
+  totalValue        Decimal              @default(0) @db.Decimal(20, 8) // principal + interest
+
+  // Interest calculation
+  interestRate      Decimal              @db.Decimal(5, 2) // Locked rate at deposit time
+  lastInterestCalc  DateTime?            // Last time interest was calculated
+
+  // Lock period
+  lockedUntil       DateTime?            // For fixed plans
+
+  // Withdrawal
+  withdrawnAt       DateTime?
+  earlyWithdrawal   Boolean              @default(false)
+  penaltyAmount     Decimal?             @db.Decimal(20, 8)
+
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ==================== SUPPORT SYSTEM ====================
+
+enum TicketStatus {
+  OPEN
+  WAITING_REPLY
+  ANSWERED
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TicketCategory {
+  ACCOUNT
+  DEPOSIT
+  WITHDRAWAL
+  TRADING
+  TECHNICAL
+  VERIFICATION
+  OTHER
+}
+
+model SupportTicket {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticketNumber    String         @unique // Human-readable ticket number
+
+  // Details
+  category        TicketCategory
+  subject         String
+  description     String
+  priority        TicketPriority @default(NORMAL)
+  status          TicketStatus   @default(OPEN)
+
+  // Assignment
+  assignedTo      String?        // Support agent user ID
+  assignedAt      DateTime?
+
+  // Resolution
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  resolution      String?
+
+  // Relations
+  messages        TicketMessage[]
+  attachments     TicketAttachment[]
+
+  // Metadata
+  metadata        Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([ticketNumber])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedTo])
+  @@index([createdAt])
+}
+
+model TicketMessage {
+  id              String        @id @default(cuid())
+  ticketId        String
+  ticket          SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId          String        // Who sent the message
+  isStaff         Boolean       @default(false)
+
+  message         String
+  attachments     String[]      @default([])
+
+  createdAt       DateTime      @default(now())
+
+  @@index([ticketId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model TicketAttachment {
+  id              String        @id @default(cuid())
+  ticketId        String
+  ticket          SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId          String
+
+  filename        String
+  url             String
+  fileSize        Int?
+  mimeType        String?
+
+  createdAt       DateTime      @default(now())
+
+  @@index([ticketId])
+}
+
+// ==================== OTC PRICING CONFIGURATION ====================
+
+model OTCPricingConfig {
+  id              String   @id @default(cuid())
+  assetId         String   @unique
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  // Spread configuration
+  spreadPercent   Decimal  @default(0) @db.Decimal(5, 4) // Bid-ask spread %
+
+  // Slippage
+  slippagePercent Decimal  @default(0) @db.Decimal(5, 4)
+
+  // Execution delay (simulated)
+  executionDelayMs Int     @default(0) // Milliseconds
+
+  // Exposure limits
+  maxExposure     Decimal? @db.Decimal(20, 8) // Max platform exposure
+
+  // Trading hours (JSON: {monday: {open: "09:00", close: "17:00"}, ...})
+  tradingHours    Json?
+
+  // Markup/Discount
+  priceAdjustment Decimal  @default(0) @db.Decimal(5, 4) // % adjustment on top of market price
+
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([assetId])
+}
+
+// ==================== PLATFORM WALLET ADDRESSES ====================
+
+model PlatformWallet {
+  id              String        @id @default(cuid())
+  network         CryptoNetwork @unique
+  address         String        // Platform's receiving address
+  qrCode          String?       // QR code URL
+  isActive        Boolean       @default(true)
+
+  // Stats
+  totalDeposits   Decimal       @default(0) @db.Decimal(20, 8)
+  depositCount    Int           @default(0)
+
+  // Metadata
+  label           String?       // e.g., "BTC Deposit Wallet"
+  notes           String?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([network])
+  @@index([isActive])
 }
