@@ -26,27 +26,53 @@ export function TradingDashboard() {
   const { balance, walletType, setWalletType, setBalances, updatePrice } = useTradingStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState<'chart' | 'social'>('chart');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (accessToken) {
-      wsService.connect(accessToken);
-      loadWallets();
+    let mounted = true;
 
-      // Subscribe to all price updates
-      wsService.subscribeToAllPrices((priceUpdate) => {
-        updatePrice(priceUpdate.assetId, priceUpdate.price);
-      });
+    const init = async () => {
+      if (accessToken && mounted) {
+        try {
+          // Connect WebSocket
+          wsService.connect(accessToken);
 
-      // Subscribe to wallet updates
-      wsService.subscribeToWallet((walletUpdate) => {
-        loadWallets();
-      });
-    }
+          // Load wallets
+          await loadWallets();
+
+          // Subscribe to all price updates
+          wsService.subscribeToAllPrices((priceUpdate) => {
+            if (mounted) {
+              updatePrice(priceUpdate.assetId, priceUpdate.price);
+            }
+          });
+
+          // Subscribe to wallet updates
+          wsService.subscribeToWallet((walletUpdate) => {
+            if (mounted) {
+              loadWallets();
+            }
+          });
+
+          if (mounted) {
+            setIsLoading(false);
+          }
+        } catch (error) {
+          console.error('Dashboard initialization error:', error);
+          if (mounted) {
+            setIsLoading(false);
+          }
+        }
+      }
+    };
+
+    init();
 
     return () => {
-      wsService.disconnect();
+      mounted = false;
+      // Only disconnect on actual unmount, not on every render
     };
-  }, [accessToken]);
+  }, []);
 
   const loadWallets = async () => {
     try {
@@ -79,6 +105,18 @@ export function TradingDashboard() {
     { icon: MessageSquare, label: 'Chat', badge: '32', action: () => {} },
     { icon: HelpCircle, label: 'Help', action: () => {} },
   ];
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
