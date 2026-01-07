@@ -1,0 +1,216 @@
+import { Router } from 'express';
+import authController from '../controllers/auth.controller';
+import tradingController from '../controllers/trading.controller';
+import adminController from '../controllers/admin.controller';
+import { authenticate, requireAdmin } from '../middleware/auth.middleware';
+import { strictLimiter, tradeLimiter } from '../middleware/rateLimiter.middleware';
+
+const router = Router();
+
+// Health check
+router.get('/health', (req, res) => {
+  res.json({ success: true, message: 'Server is running' });
+});
+
+// ==================== AUTH ROUTES ====================
+router.post('/auth/register', strictLimiter, authController.register);
+router.post('/auth/login', strictLimiter, authController.login);
+router.post('/auth/refresh', authController.refreshToken);
+router.post('/auth/logout', authenticate, authController.logout);
+router.post('/auth/logout-all', authenticate, authController.logoutAll);
+router.get('/auth/sessions', authenticate, authController.getSessions);
+router.post('/auth/change-password', authenticate, authController.changePassword);
+router.get('/auth/profile', authenticate, authController.getProfile);
+
+// 2FA
+router.post('/auth/2fa/setup', authenticate, authController.setup2FA);
+router.post('/auth/2fa/enable', authenticate, authController.enable2FA);
+router.post('/auth/2fa/disable', authenticate, authController.disable2FA);
+
+// ==================== TRADING ROUTES ====================
+router.post('/trades', authenticate, tradeLimiter, tradingController.placeTrade);
+router.get('/trades', authenticate, tradingController.getTrades);
+router.get('/trades/stats', authenticate, tradingController.getTradeStats);
+router.get('/trades/open', authenticate, tradingController.getOpenTrades);
+router.delete('/trades/:tradeId', authenticate, tradingController.cancelTrade);
+
+// Assets & Market Data
+router.get('/assets', tradingController.getAssets);
+router.get('/assets/:assetId/price', tradingController.getCurrentPrice);
+router.get('/assets/:assetId/history', tradingController.getPriceHistory);
+
+// ==================== WALLET ROUTES ====================
+router.get('/wallet', authenticate, async (req, res, next) => {
+  try {
+    const walletService = (await import('../services/wallet.service')).default;
+    const wallets = await walletService.getUserWallets(req.user!.userId);
+    res.json({ success: true, data: wallets });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/wallet/transactions', authenticate, async (req, res, next) => {
+  try {
+    const walletService = (await import('../services/wallet.service')).default;
+    const { walletType, limit, offset } = req.query;
+    const result = await walletService.getTransactionHistory(
+      req.user!.userId,
+      walletType as any,
+      limit ? Number(limit) : undefined,
+      offset ? Number(offset) : undefined
+    );
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ==================== COPY TRADING ROUTES ====================
+router.get('/copy-trading/traders', authenticate, async (req, res, next) => {
+  try {
+    const copyTradingService = (await import('../services/copyTrading.service')).default;
+    const filters = {
+      minWinRate: req.query.minWinRate ? Number(req.query.minWinRate) : undefined,
+      minTotalTrades: req.query.minTotalTrades ? Number(req.query.minTotalTrades) : undefined,
+      sortBy: req.query.sortBy as any,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+      offset: req.query.offset ? Number(req.query.offset) : undefined,
+    };
+    const result = await copyTradingService.getPublicCopyTraders(filters);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/copy-trading/apply', authenticate, async (req, res, next) => {
+  try {
+    const copyTradingService = (await import('../services/copyTrading.service')).default;
+    const result = await copyTradingService.applyAsCopyTrader(req.user!.userId, req.body);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/copy-trading/follow/:copyTraderId', authenticate, async (req, res, next) => {
+  try {
+    const copyTradingService = (await import('../services/copyTrading.service')).default;
+    const result = await copyTradingService.followCopyTrader(
+      req.user!.userId,
+      req.params.copyTraderId,
+      req.body
+    );
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/copy-trading/follow/:copyTraderId', authenticate, async (req, res, next) => {
+  try {
+    const copyTradingService = (await import('../services/copyTrading.service')).default;
+    await copyTradingService.unfollowCopyTrader(req.user!.userId, req.params.copyTraderId);
+    res.json({ success: true, message: 'Unfollowed successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/copy-trading/my-relationships', authenticate, async (req, res, next) => {
+  try {
+    const copyTradingService = (await import('../services/copyTrading.service')).default;
+    const relationships = await copyTradingService.getUserCopyRelationships(req.user!.userId);
+    res.json({ success: true, data: relationships });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ==================== AFFILIATE ROUTES ====================
+router.post('/affiliate/apply', authenticate, async (req, res, next) => {
+  try {
+    const affiliateService = (await import('../services/affiliate.service')).default;
+    const result = await affiliateService.applyAsAffiliate(req.user!.userId, req.body);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/affiliate/stats', authenticate, async (req, res, next) => {
+  try {
+    const affiliateService = (await import('../services/affiliate.service')).default;
+    const stats = await affiliateService.getAffiliateStats(req.user!.userId);
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/affiliate/commissions', authenticate, async (req, res, next) => {
+  try {
+    const affiliateService = (await import('../services/affiliate.service')).default;
+    const affiliate = await affiliateService.getAffiliateDetails(req.user!.userId);
+    const filters = {
+      status: req.query.status as any,
+      type: req.query.type as any,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+      offset: req.query.offset ? Number(req.query.offset) : undefined,
+    };
+    const result = await affiliateService.getAffiliateCommissions(affiliate.id, filters);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/referral/stats', authenticate, async (req, res, next) => {
+  try {
+    const affiliateService = (await import('../services/affiliate.service')).default;
+    const stats = await affiliateService.getReferralStats(req.user!.userId);
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ==================== ADMIN ROUTES ====================
+const adminRouter = Router();
+adminRouter.use(authenticate, requireAdmin);
+
+// User Management
+adminRouter.get('/users', adminController.getUsers);
+adminRouter.put('/users/:userId/status', adminController.updateUserStatus);
+adminRouter.post('/users/adjust-balance', adminController.adjustBalance);
+
+// Trading Management
+adminRouter.get('/trades', adminController.getAllTrades);
+adminRouter.get('/trades/exposure', adminController.getPlatformExposure);
+adminRouter.get('/stats', adminController.getPlatformStats);
+
+// Asset Management
+adminRouter.put('/assets/:assetId', adminController.updateAsset);
+adminRouter.post('/assets', adminController.createAsset);
+
+// Copy Trading Management
+adminRouter.get('/copy-traders/pending', adminController.getPendingCopyTraders);
+adminRouter.post('/copy-traders/:copyTraderId/approve', adminController.approveCopyTrader);
+adminRouter.post('/copy-traders/:copyTraderId/suspend', adminController.suspendCopyTrader);
+
+// Affiliate Management
+adminRouter.get('/affiliates', adminController.getAllAffiliates);
+adminRouter.post('/affiliates/:affiliateId/approve', adminController.approveAffiliate);
+adminRouter.get('/commissions/pending', adminController.getPendingCommissions);
+adminRouter.post('/commissions/:commissionId/approve', adminController.approveCommission);
+adminRouter.post('/commissions/:commissionId/pay', adminController.payCommission);
+
+// System Management
+adminRouter.get('/settings', adminController.getSystemSettings);
+adminRouter.put('/settings/:key', adminController.updateSystemSetting);
+adminRouter.get('/audit-logs', adminController.getAuditLogs);
+
+router.use('/admin', adminRouter);
+
+export default router;

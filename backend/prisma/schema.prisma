@@ -1,0 +1,725 @@
+// Production-Grade Binary Options Trading Platform Schema
+// This schema is designed for high-performance, ACID-compliant operations
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USER MANAGEMENT ====================
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPPORT
+  RISK_MANAGER
+  AFFILIATE_MANAGER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  PENDING_VERIFICATION
+}
+
+enum KYCStatus {
+  NOT_SUBMITTED
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+model User {
+  id                String         @id @default(cuid())
+  email             String         @unique
+  emailVerified     Boolean        @default(false)
+  passwordHash      String
+  role              UserRole       @default(USER)
+  status            UserStatus     @default(ACTIVE)
+
+  // Profile
+  firstName         String?
+  lastName          String?
+  username          String?        @unique
+  phone             String?
+  country           String?
+  dateOfBirth       DateTime?
+
+  // Security
+  twoFactorSecret   String?
+  twoFactorEnabled  Boolean        @default(false)
+  lastLoginAt       DateTime?
+  lastLoginIp       String?
+
+  // KYC
+  kycStatus         KYCStatus      @default(NOT_SUBMITTED)
+  kycSubmittedAt    DateTime?
+  kycApprovedAt     DateTime?
+  kycDocuments      Json?          // Store document references
+
+  // Referral
+  referralCode      String         @unique @default(cuid())
+  referredById      String?
+  referredBy        User?          @relation("Referrals", fields: [referredById], references: [id])
+  referrals         User[]         @relation("Referrals")
+
+  // Metadata
+  metadata          Json?          // Extra flexible data
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Relations
+  wallets           Wallet[]
+  trades            Trade[]
+  sessions          Session[]
+  auditLogs         AuditLog[]
+  transactions      Transaction[]
+  copyTraderProfile CopyTrader?
+  copyFollowing     CopyRelationship[] @relation("Follower")
+  affiliateProfile  Affiliate?
+  notifications     Notification[]
+  withdrawals       Withdrawal[]
+  deposits          Deposit[]
+
+  @@index([email])
+  @@index([referralCode])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ==================== AUTHENTICATION ====================
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  deviceInfo   Json?    // Browser, OS, IP, etc.
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+}
+
+// ==================== WALLET & FINANCE ====================
+
+enum WalletType {
+  DEMO
+  REAL
+}
+
+model Wallet {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          WalletType
+  balance       Decimal        @default(0) @db.Decimal(20, 8)
+  lockedBalance Decimal        @default(0) @db.Decimal(20, 8) // Locked in open trades
+  currency      String         @default("USD")
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relations
+  transactions  Transaction[]
+  trades        Trade[]
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@index([type])
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRADE_WIN
+  TRADE_LOSS
+  TRADE_REFUND
+  ADMIN_ADJUSTMENT
+  AFFILIATE_COMMISSION
+  COPY_TRADE_PROFIT_SHARE
+  BONUS
+  PENALTY
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  PROCESSING
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  walletId        String
+  wallet          Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  amount          Decimal           @db.Decimal(20, 8)
+  balanceBefore   Decimal           @db.Decimal(20, 8)
+  balanceAfter    Decimal           @db.Decimal(20, 8)
+  currency        String            @default("USD")
+
+  // References
+  tradeId         String?
+  trade           Trade?            @relation(fields: [tradeId], references: [id])
+  referenceId     String?           // External payment ID, etc.
+
+  // Metadata
+  description     String?
+  metadata        Json?
+  processedAt     DateTime?
+  createdAt       DateTime          @default(now())
+
+  @@index([walletId])
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([tradeId])
+}
+
+// ==================== DEPOSITS & WITHDRAWALS ====================
+
+enum PaymentMethod {
+  CREDIT_CARD
+  BANK_TRANSFER
+  CRYPTO
+  E_WALLET
+  OTHER
+}
+
+enum DepositStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+model Deposit {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount          Decimal       @db.Decimal(20, 8)
+  currency        String        @default("USD")
+  method          PaymentMethod
+  status          DepositStatus @default(PENDING)
+
+  // Payment Gateway
+  gatewayProvider String?       // stripe, coinbase, etc.
+  gatewayTxId     String?       @unique
+  gatewayResponse Json?
+
+  // Metadata
+  metadata        Json?
+  completedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+model Withdrawal {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount          Decimal          @db.Decimal(20, 8)
+  currency        String           @default("USD")
+  method          PaymentMethod
+  status          WithdrawalStatus @default(PENDING)
+
+  // Destination
+  destination     Json             // Bank account, crypto address, etc.
+
+  // Approval
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+
+  // Payment
+  gatewayProvider String?
+  gatewayTxId     String?          @unique
+  gatewayResponse Json?
+
+  // Metadata
+  metadata        Json?
+  completedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ==================== TRADING ENGINE ====================
+
+enum AssetType {
+  FOREX
+  CRYPTO
+  COMMODITY
+  STOCK
+  INDEX
+  OTC
+}
+
+model Asset {
+  id              String    @id @default(cuid())
+  symbol          String    @unique // e.g., EUR/USD, BTC/USD
+  name            String
+  type            AssetType
+  isActive        Boolean   @default(true)
+  isOTC           Boolean   @default(false) // Over-the-counter (simulated)
+
+  // Trading Parameters
+  minTradeAmount  Decimal   @db.Decimal(20, 8)
+  maxTradeAmount  Decimal   @db.Decimal(20, 8)
+  payoutPercent   Decimal   @db.Decimal(5, 2) // Default payout %
+
+  // Market Hours
+  tradingHours    Json?     // When asset is tradeable
+
+  // Display
+  icon            String?
+  order           Int       @default(0)
+
+  // Metadata
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  prices          Price[]
+  trades          Trade[]
+
+  @@index([symbol])
+  @@index([type])
+  @@index([isActive])
+}
+
+model Price {
+  id        String   @id @default(cuid())
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  price     Decimal  @db.Decimal(20, 8)
+  timestamp DateTime @default(now())
+
+  // OHLCV for candles
+  open      Decimal? @db.Decimal(20, 8)
+  high      Decimal? @db.Decimal(20, 8)
+  low       Decimal? @db.Decimal(20, 8)
+  close     Decimal? @db.Decimal(20, 8)
+  volume    Decimal? @db.Decimal(20, 8)
+
+  @@index([assetId, timestamp])
+  @@index([timestamp])
+}
+
+enum TradeDirection {
+  UP
+  DOWN
+}
+
+enum TradeStatus {
+  PENDING    // Trade placed, not opened yet
+  OPEN       // Trade active
+  WON        // Trade won
+  LOST       // Trade lost
+  DRAW       // Price didn't change
+  CANCELLED  // Cancelled before opening
+  REFUNDED   // Refunded
+}
+
+model Trade {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletId        String
+  wallet          Wallet         @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  assetId         String
+  asset           Asset          @relation(fields: [assetId], references: [id])
+
+  // Trade Parameters
+  direction       TradeDirection
+  amount          Decimal        @db.Decimal(20, 8)
+  payoutPercent   Decimal        @db.Decimal(5, 2)
+  expirySeconds   Int            // Duration in seconds
+
+  // Execution
+  status          TradeStatus    @default(PENDING)
+  openPrice       Decimal?       @db.Decimal(20, 8)
+  closePrice      Decimal?       @db.Decimal(20, 8)
+  openedAt        DateTime?
+  closedAt        DateTime?
+  expiresAt       DateTime?
+
+  // Settlement
+  profit          Decimal?       @db.Decimal(20, 8) // Can be negative
+  profitPercent   Decimal?       @db.Decimal(10, 4)
+
+  // Copy Trading
+  isCopyTrade     Boolean        @default(false)
+  masterTradeId   String?
+  masterTrade     Trade?         @relation("CopyTrades", fields: [masterTradeId], references: [id])
+  copiedTrades    Trade[]        @relation("CopyTrades")
+
+  // Risk Management
+  riskScore       Decimal?       @db.Decimal(5, 2)
+  flags           Json?          // Any risk flags
+
+  // Metadata
+  metadata        Json?
+  createdAt       DateTime       @default(now())
+
+  // Relations
+  transactions    Transaction[]
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([assetId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([expiresAt])
+  @@index([masterTradeId])
+}
+
+// ==================== COPY TRADING ====================
+
+enum CopyTraderStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+model CopyTrader {
+  id                  String            @id @default(cuid())
+  userId              String            @unique
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status              CopyTraderStatus  @default(PENDING)
+
+  // Performance
+  totalTrades         Int               @default(0)
+  wonTrades           Int               @default(0)
+  lostTrades          Int               @default(0)
+  winRate             Decimal           @default(0) @db.Decimal(5, 2)
+  totalProfit         Decimal           @default(0) @db.Decimal(20, 8)
+  totalVolume         Decimal           @default(0) @db.Decimal(20, 8)
+
+  // Copy Settings
+  minCopyAmount       Decimal           @db.Decimal(20, 8)
+  maxCopyAmount       Decimal           @db.Decimal(20, 8)
+  profitSharePercent  Decimal           @default(0) @db.Decimal(5, 2) // % of follower profits
+
+  // Display
+  displayName         String?
+  bio                 String?
+  avatar              String?
+  isPublic            Boolean           @default(true)
+
+  // Approval
+  approvedAt          DateTime?
+  approvedBy          String?
+
+  // Metadata
+  metadata            Json?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relations
+  followers           CopyRelationship[]
+
+  @@index([status])
+  @@index([winRate])
+  @@index([isPublic])
+}
+
+enum CopyRelationshipStatus {
+  ACTIVE
+  PAUSED
+  STOPPED
+}
+
+model CopyRelationship {
+  id              String                 @id @default(cuid())
+  followerId      String
+  follower        User                   @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  masterTraderId  String
+  masterTrader    CopyTrader             @relation(fields: [masterTraderId], references: [id], onDelete: Cascade)
+  status          CopyRelationshipStatus @default(ACTIVE)
+
+  // Copy Settings
+  copyMode        String                 @default("FIXED") // FIXED or PERCENT
+  copyAmount      Decimal?               @db.Decimal(20, 8) // Fixed amount
+  copyPercent     Decimal?               @db.Decimal(5, 2)  // % of master trade
+  maxDailyLoss    Decimal?               @db.Decimal(20, 8)
+
+  // Performance
+  totalCopied     Int                    @default(0)
+  totalProfit     Decimal                @default(0) @db.Decimal(20, 8)
+
+  // Metadata
+  startedAt       DateTime               @default(now())
+  stoppedAt       DateTime?
+  metadata        Json?
+
+  @@unique([followerId, masterTraderId])
+  @@index([followerId])
+  @@index([masterTraderId])
+  @@index([status])
+}
+
+// ==================== AFFILIATE SYSTEM ====================
+
+enum AffiliateStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum CommissionModel {
+  CPA          // Cost per acquisition
+  REVENUE_SHARE // % of platform profit from referral
+  HYBRID       // Both
+}
+
+model Affiliate {
+  id                    String          @id @default(cuid())
+  userId                String          @unique
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status                AffiliateStatus @default(PENDING)
+
+  // Commission Structure
+  commissionModel       CommissionModel @default(REVENUE_SHARE)
+  cpaAmount             Decimal         @default(0) @db.Decimal(20, 8)
+  revenueSharePercent   Decimal         @default(0) @db.Decimal(5, 2)
+  tier                  Int             @default(1) // For multi-tier
+
+  // Performance
+  totalReferrals        Int             @default(0)
+  activeReferrals       Int             @default(0)
+  totalCommission       Decimal         @default(0) @db.Decimal(20, 8)
+  pendingCommission     Decimal         @default(0) @db.Decimal(20, 8)
+  paidCommission        Decimal         @default(0) @db.Decimal(20, 8)
+
+  // Tracking
+  trackingDomain        String?
+  customParams          Json?
+
+  // Approval
+  approvedAt            DateTime?
+  approvedBy            String?
+
+  // Metadata
+  metadata              Json?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  // Relations
+  commissions           Commission[]
+
+  @@index([status])
+  @@index([userId])
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
+  CANCELLED
+}
+
+model Commission {
+  id              String           @id @default(cuid())
+  affiliateId     String
+  affiliate       Affiliate        @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  referredUserId  String           // The user who was referred
+
+  // Commission Details
+  type            CommissionModel
+  amount          Decimal          @db.Decimal(20, 8)
+  status          CommissionStatus @default(PENDING)
+
+  // Reference
+  referenceId     String?          // Trade ID, deposit ID, etc.
+  referenceType   String?          // TRADE, DEPOSIT, etc.
+
+  // Calculation
+  baseAmount      Decimal?         @db.Decimal(20, 8) // Base for calculation
+  percentage      Decimal?         @db.Decimal(5, 2)
+
+  // Payment
+  paidAt          DateTime?
+  paymentMethod   String?
+  paymentRef      String?
+
+  // Metadata
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([affiliateId])
+  @@index([referredUserId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ==================== SYSTEM & ADMIN ====================
+
+enum AuditLogAction {
+  USER_LOGIN
+  USER_LOGOUT
+  USER_REGISTER
+  PASSWORD_CHANGE
+  TRADE_PLACED
+  TRADE_SETTLED
+  DEPOSIT_MADE
+  WITHDRAWAL_REQUEST
+  ADMIN_ACTION
+  BALANCE_ADJUSTMENT
+  USER_SUSPENDED
+  USER_BANNED
+  SETTINGS_CHANGED
+  RISK_ALERT
+}
+
+model AuditLog {
+  id          String         @id @default(cuid())
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      AuditLogAction
+  entity      String?        // Entity type (User, Trade, etc.)
+  entityId    String?        // ID of the entity
+  ipAddress   String?
+  userAgent   String?
+  details     Json?
+  metadata    Json?
+  createdAt   DateTime       @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([entityId])
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  category  String?  // TRADING, FINANCE, SECURITY, etc.
+  isPublic  Boolean  @default(false) // If visible to users
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([key])
+}
+
+// ==================== NOTIFICATIONS ====================
+
+enum NotificationType {
+  TRADE_OPENED
+  TRADE_CLOSED
+  DEPOSIT_COMPLETED
+  WITHDRAWAL_APPROVED
+  WITHDRAWAL_REJECTED
+  COPY_TRADE_EXECUTED
+  AFFILIATE_COMMISSION
+  SYSTEM_ALERT
+  SECURITY_ALERT
+  KYC_STATUS
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  status    NotificationStatus @default(UNREAD)
+  title     String
+  message   String
+  data      Json?              // Additional data
+  link      String?            // Link to relevant page
+  createdAt DateTime           @default(now())
+  readAt    DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ==================== RISK MANAGEMENT ====================
+
+model RiskLimit {
+  id              String   @id @default(cuid())
+  userId          String?  @unique // NULL for global limits
+  assetId         String?  // NULL for all assets
+
+  // Limits
+  maxTradeAmount  Decimal? @db.Decimal(20, 8)
+  maxDailyLoss    Decimal? @db.Decimal(20, 8)
+  maxOpenTrades   Int?
+  maxDailyTrades  Int?
+
+  // Cool-down
+  cooldownSeconds Int?
+
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([assetId])
+}
+
+model RiskAlert {
+  id          String   @id @default(cuid())
+  userId      String?
+  type        String   // Type of alert
+  severity    String   // LOW, MEDIUM, HIGH, CRITICAL
+  message     String
+  data        Json?
+  isResolved  Boolean  @default(false)
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([severity])
+  @@index([isResolved])
+  @@index([createdAt])
+}
