@@ -5,11 +5,15 @@ import adminController from '../controllers/admin.controller';
 import { authenticate, requireAdmin } from '../middleware/auth.middleware';
 import { strictLimiter, tradeLimiter } from '../middleware/rateLimiter.middleware';
 import healthRoutes from './health.routes';
+import financeRoutes from './finance.routes';
 
 const router = Router();
 
 // Health check routes (for load balancers)
 router.use('/', healthRoutes);
+
+// Finance routes (deposits, withdrawals, transactions)
+router.use('/finance', financeRoutes);
 
 // ==================== AUTH ROUTES ====================
 router.post('/auth/register', strictLimiter, authController.register);
