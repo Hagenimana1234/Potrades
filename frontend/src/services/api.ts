@@ -122,10 +122,26 @@ export const copyTradingAPI = {
 
 // Affiliate API
 export const affiliateAPI = {
+  // User endpoints
   apply: (data: any) => api.post('/affiliate/apply', data),
+  getDetails: () => api.get('/affiliate/details'),
   getStats: () => api.get('/affiliate/stats'),
   getCommissions: (params?: any) => api.get('/affiliate/commissions', { params }),
+  getReferrals: () => api.get('/affiliate/referrals'),
   getReferralStats: () => api.get('/referral/stats'),
+
+  // Admin endpoints
+  adminGetAll: (params?: any) => api.get('/affiliate/admin/all', { params }),
+  adminApprove: (affiliateId: string, data?: any) =>
+    api.post(`/affiliate/admin/${affiliateId}/approve`, data),
+  adminSuspend: (affiliateId: string) => api.post(`/affiliate/admin/${affiliateId}/suspend`),
+  adminGetPendingCommissions: (limit?: number) =>
+    api.get('/affiliate/admin/commissions/pending', { params: { limit } }),
+  adminApproveCommission: (commissionId: string) =>
+    api.post(`/affiliate/admin/commissions/${commissionId}/approve`),
+  adminPayCommission: (commissionId: string, data?: any) =>
+    api.post(`/affiliate/admin/commissions/${commissionId}/pay`, data),
+  adminGetDetails: (affiliateId: string) => api.get(`/affiliate/admin/${affiliateId}/details`),
 };
 
 // Admin API

@@ -6,6 +6,7 @@ import { authenticate, requireAdmin } from '../middleware/auth.middleware';
 import { strictLimiter, tradeLimiter } from '../middleware/rateLimiter.middleware';
 import healthRoutes from './health.routes';
 import financeRoutes from './finance.routes';
+import affiliateRoutes from './affiliate.routes';
 
 const router = Router();
 
@@ -14,6 +15,9 @@ router.use('/', healthRoutes);
 
 // Finance routes (deposits, withdrawals, transactions)
 router.use('/finance', financeRoutes);
+
+// Affiliate routes (referrals, commissions)
+router.use('/affiliate', affiliateRoutes);
 
 // ==================== AUTH ROUTES ====================
 router.post('/auth/register', strictLimiter, authController.register);
@@ -131,44 +135,8 @@ router.get('/copy-trading/my-relationships', authenticate, async (req, res, next
   }
 });
 
-// ==================== AFFILIATE ROUTES ====================
-router.post('/affiliate/apply', authenticate, async (req, res, next) => {
-  try {
-    const affiliateService = (await import('../services/affiliate.service')).default;
-    const result = await affiliateService.applyAsAffiliate(req.user!.userId, req.body);
-    res.json({ success: true, data: result });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get('/affiliate/stats', authenticate, async (req, res, next) => {
-  try {
-    const affiliateService = (await import('../services/affiliate.service')).default;
-    const stats = await affiliateService.getAffiliateStats(req.user!.userId);
-    res.json({ success: true, data: stats });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get('/affiliate/commissions', authenticate, async (req, res, next) => {
-  try {
-    const affiliateService = (await import('../services/affiliate.service')).default;
-    const affiliate = await affiliateService.getAffiliateDetails(req.user!.userId);
-    const filters = {
-      status: req.query.status as any,
-      type: req.query.type as any,
-      limit: req.query.limit ? Number(req.query.limit) : undefined,
-      offset: req.query.offset ? Number(req.query.offset) : undefined,
-    };
-    const result = await affiliateService.getAffiliateCommissions(affiliate.id, filters);
-    res.json({ success: true, data: result });
-  } catch (error) {
-    next(error);
-  }
-});
-
+// ==================== REFERRAL ROUTES ====================
+// Basic referral stats (separate from affiliate program)
 router.get('/referral/stats', authenticate, async (req, res, next) => {
   try {
     const affiliateService = (await import('../services/affiliate.service')).default;
