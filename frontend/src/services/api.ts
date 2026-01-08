@@ -188,6 +188,32 @@ export const copyTradingAPI = {
   updateCopyTraderProfile: (data: any) => api.put('/copy-trading/my-profile', data),
 };
 
+// Support API
+export const supportAPI = {
+  // Tickets
+  getTickets: (params?: any) => api.get('/support/tickets', { params }),
+  getMyTickets: (status?: string) => api.get('/support/my-tickets', { params: { status } }),
+  getTicketById: (ticketId: string) => api.get(`/support/tickets/${ticketId}`),
+  getTicketByNumber: (ticketNumber: string) => api.get(`/support/tickets/number/${ticketNumber}`),
+  createTicket: (data: any) => api.post('/support/tickets', data),
+  updateTicket: (ticketId: string, data: any) => api.put(`/support/tickets/${ticketId}`, data),
+
+  // Ticket actions
+  assignTicket: (ticketId: string, agentId: string) => api.post(`/support/tickets/${ticketId}/assign`, { agentId }),
+  resolveTicket: (ticketId: string, resolution: string) =>
+    api.post(`/support/tickets/${ticketId}/resolve`, { resolution }),
+  closeTicket: (ticketId: string) => api.post(`/support/tickets/${ticketId}/close`),
+  reopenTicket: (ticketId: string) => api.post(`/support/tickets/${ticketId}/reopen`),
+
+  // Messages
+  getMessages: (ticketId: string) => api.get(`/support/tickets/${ticketId}/messages`),
+  addMessage: (ticketId: string, data: { message: string; attachments?: string[] }) =>
+    api.post(`/support/tickets/${ticketId}/messages`, data),
+
+  // Stats
+  getStats: (days?: number) => api.get('/support/stats', { params: { days } }),
+};
+
 // Notifications API
 export const notificationsAPI = {
   // Get notifications

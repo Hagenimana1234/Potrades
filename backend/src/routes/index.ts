@@ -15,6 +15,7 @@ import copyTradingRoutes from './copyTrading.routes';
 import settingsRoutes from './settings.routes';
 import signalsRoutes from './signals.routes';
 import notificationsRoutes from './notifications.routes';
+import supportRoutes from './support.routes';
 
 const router = Router();
 
@@ -50,6 +51,9 @@ router.use('/signals', signalsRoutes);
 
 // Notifications routes (in-app notifications, alerts)
 router.use('/notifications', notificationsRoutes);
+
+// Support routes (tickets, messages, customer support)
+router.use('/support', supportRoutes);
 
 // ==================== AUTH ROUTES ====================
 router.post('/auth/register', strictLimiter, authController.register);
