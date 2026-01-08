@@ -11,6 +11,7 @@ import profileRoutes from './profile.routes';
 import marketRoutes from './market.routes';
 import savingsRoutes from './savings.routes';
 import tradesRoutes from './trades.routes';
+import copyTradingRoutes from './copyTrading.routes';
 
 const router = Router();
 
@@ -25,6 +26,9 @@ router.use('/savings', savingsRoutes);
 
 // Trades routes (place, close, history, risk settings)
 router.use('/trades', tradesRoutes);
+
+// Copy Trading routes (browse traders, follow, performance)
+router.use('/copy-trading', copyTradingRoutes);
 
 // Finance routes (deposits, withdrawals, transactions)
 router.use('/finance', financeRoutes);

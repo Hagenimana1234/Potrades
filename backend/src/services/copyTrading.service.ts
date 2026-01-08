@@ -518,6 +518,403 @@ export class CopyTradingService {
       orderBy: { startedAt: 'desc' },
     });
   }
+
+  /**
+   * Get my copy trader profile (if I'm a copy trader)
+   */
+  async getMyCopyTraderProfile(userId: string) {
+    const copyTrader = await prisma.copyTrader.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        _count: {
+          select: {
+            followers: true,
+          },
+        },
+      },
+    });
+
+    if (!copyTrader) {
+      return null;
+    }
+
+    // Get active followers
+    const activeFollowers = await prisma.copyRelationship.count({
+      where: {
+        masterTraderId: copyTrader.id,
+        status: CopyRelationshipStatus.ACTIVE,
+      },
+    });
+
+    // Get recent trades
+    const recentTrades = await prisma.trade.findMany({
+      where: {
+        userId,
+        status: { in: ['WON', 'LOST', 'DRAW'] },
+      },
+      orderBy: { closedAt: 'desc' },
+      take: 10,
+      include: {
+        asset: {
+          select: {
+            symbol: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return {
+      ...copyTrader,
+      activeFollowers,
+      recentTrades,
+    };
+  }
+
+  /**
+   * Update copy trader profile
+   */
+  async updateCopyTraderProfile(userId: string, data: {
+    displayName?: string;
+    bio?: string;
+    avatar?: string;
+    minCopyAmount?: number;
+    maxCopyAmount?: number;
+    profitSharePercent?: number;
+    isPublic?: boolean;
+  }) {
+    const copyTrader = await prisma.copyTrader.findUnique({
+      where: { userId },
+    });
+
+    if (!copyTrader) {
+      throw new NotFoundError('Copy trader profile not found');
+    }
+
+    // Validate amounts if provided
+    if (data.minCopyAmount !== undefined && data.maxCopyAmount !== undefined) {
+      if (data.minCopyAmount >= data.maxCopyAmount) {
+        throw new ValidationError('Min copy amount must be less than max copy amount');
+      }
+    }
+
+    // Validate profit share
+    if (data.profitSharePercent !== undefined) {
+      if (data.profitSharePercent < 0 || data.profitSharePercent > 50) {
+        throw new ValidationError('Profit share must be between 0 and 50%');
+      }
+    }
+
+    const updated = await prisma.copyTrader.update({
+      where: { userId },
+      data: {
+        displayName: data.displayName,
+        bio: data.bio,
+        avatar: data.avatar,
+        minCopyAmount: data.minCopyAmount,
+        maxCopyAmount: data.maxCopyAmount,
+        profitSharePercent: data.profitSharePercent,
+        isPublic: data.isPublic,
+      },
+    });
+
+    logger.info(`Copy trader ${copyTrader.id} profile updated`);
+
+    return updated;
+  }
+
+  /**
+   * Pause copy relationship
+   */
+  async pauseCopyRelationship(followerId: string, copyTraderId: string) {
+    const relationship = await prisma.copyRelationship.findUnique({
+      where: {
+        followerId_masterTraderId: {
+          followerId,
+          masterTraderId: copyTraderId,
+        },
+      },
+    });
+
+    if (!relationship) {
+      throw new NotFoundError('Copy relationship not found');
+    }
+
+    if (relationship.status !== CopyRelationshipStatus.ACTIVE) {
+      throw new ValidationError('Can only pause active relationships');
+    }
+
+    await prisma.copyRelationship.update({
+      where: { id: relationship.id },
+      data: {
+        status: CopyRelationshipStatus.PAUSED,
+      },
+    });
+
+    logger.info(`User ${followerId} paused copy relationship with ${copyTraderId}`);
+  }
+
+  /**
+   * Resume copy relationship
+   */
+  async resumeCopyRelationship(followerId: string, copyTraderId: string) {
+    const relationship = await prisma.copyRelationship.findUnique({
+      where: {
+        followerId_masterTraderId: {
+          followerId,
+          masterTraderId: copyTraderId,
+        },
+      },
+    });
+
+    if (!relationship) {
+      throw new NotFoundError('Copy relationship not found');
+    }
+
+    if (relationship.status !== CopyRelationshipStatus.PAUSED) {
+      throw new ValidationError('Can only resume paused relationships');
+    }
+
+    await prisma.copyRelationship.update({
+      where: { id: relationship.id },
+      data: {
+        status: CopyRelationshipStatus.ACTIVE,
+      },
+    });
+
+    logger.info(`User ${followerId} resumed copy relationship with ${copyTraderId}`);
+  }
+
+  /**
+   * Update copy relationship settings
+   */
+  async updateCopyRelationship(
+    followerId: string,
+    copyTraderId: string,
+    config: {
+      copyMode?: 'FIXED' | 'PERCENT';
+      copyAmount?: number;
+      copyPercent?: number;
+      maxDailyLoss?: number;
+    }
+  ) {
+    const relationship = await prisma.copyRelationship.findUnique({
+      where: {
+        followerId_masterTraderId: {
+          followerId,
+          masterTraderId: copyTraderId,
+        },
+      },
+      include: {
+        masterTrader: true,
+      },
+    });
+
+    if (!relationship) {
+      throw new NotFoundError('Copy relationship not found');
+    }
+
+    // Validate config
+    if (config.copyMode === 'FIXED' && config.copyAmount !== undefined) {
+      const copyTrader = relationship.masterTrader;
+      if (config.copyAmount < copyTrader.minCopyAmount.toNumber()) {
+        throw new ValidationError(
+          `Minimum copy amount is ${copyTrader.minCopyAmount.toString()}`
+        );
+      }
+      if (config.copyAmount > copyTrader.maxCopyAmount.toNumber()) {
+        throw new ValidationError(
+          `Maximum copy amount is ${copyTrader.maxCopyAmount.toString()}`
+        );
+      }
+    }
+
+    await prisma.copyRelationship.update({
+      where: { id: relationship.id },
+      data: {
+        copyMode: config.copyMode,
+        copyAmount: config.copyAmount,
+        copyPercent: config.copyPercent,
+        maxDailyLoss: config.maxDailyLoss,
+      },
+    });
+
+    logger.info(`Copy relationship updated for follower ${followerId}`);
+  }
+
+  /**
+   * Get performance metrics for a copy trader
+   */
+  async getCopyTraderPerformance(copyTraderId: string, days: number = 30) {
+    const copyTrader = await this.getCopyTraderDetails(copyTraderId);
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Get trades in the period
+    const trades = await prisma.trade.findMany({
+      where: {
+        userId: copyTrader.userId,
+        createdAt: { gte: startDate },
+        status: { in: ['WON', 'LOST', 'DRAW'] },
+      },
+      orderBy: { closedAt: 'desc' },
+      include: {
+        asset: {
+          select: {
+            symbol: true,
+            type: true,
+          },
+        },
+      },
+    });
+
+    // Calculate daily P&L
+    const dailyPnL: Record<string, number> = {};
+    trades.forEach((trade) => {
+      const date = new Date(trade.closedAt || trade.createdAt).toISOString().split('T')[0];
+      if (!dailyPnL[date]) dailyPnL[date] = 0;
+      dailyPnL[date] += trade.profit?.toNumber() || 0;
+    });
+
+    // Asset distribution
+    const assetStats: Record<string, { trades: number; profit: number }> = {};
+    trades.forEach((trade) => {
+      const symbol = trade.asset.symbol;
+      if (!assetStats[symbol]) {
+        assetStats[symbol] = { trades: 0, profit: 0 };
+      }
+      assetStats[symbol].trades++;
+      assetStats[symbol].profit += trade.profit?.toNumber() || 0;
+    });
+
+    // Calculate streak
+    let currentStreak = 0;
+    let bestStreak = 0;
+    let worstStreak = 0;
+    let streak = 0;
+    let lastStatus: string | null = null;
+
+    const sortedTrades = [...trades].sort((a, b) =>
+      new Date(a.closedAt || a.createdAt).getTime() - new Date(b.closedAt || b.createdAt).getTime()
+    );
+
+    sortedTrades.forEach((trade) => {
+      if (trade.status === 'WON') {
+        if (lastStatus === 'WON') {
+          streak++;
+        } else {
+          if (lastStatus === 'LOST' && streak < 0) {
+            worstStreak = Math.min(worstStreak, streak);
+          }
+          streak = 1;
+        }
+        lastStatus = 'WON';
+      } else if (trade.status === 'LOST') {
+        if (lastStatus === 'LOST') {
+          streak--;
+        } else {
+          if (lastStatus === 'WON' && streak > 0) {
+            bestStreak = Math.max(bestStreak, streak);
+          }
+          streak = -1;
+        }
+        lastStatus = 'LOST';
+      }
+    });
+
+    if (streak > 0) {
+      bestStreak = Math.max(bestStreak, streak);
+      currentStreak = streak;
+    } else if (streak < 0) {
+      worstStreak = Math.min(worstStreak, streak);
+      currentStreak = streak;
+    }
+
+    return {
+      period: {
+        days,
+        startDate,
+        endDate: new Date(),
+      },
+      trades: {
+        total: trades.length,
+        won: trades.filter((t) => t.status === 'WON').length,
+        lost: trades.filter((t) => t.status === 'LOST').length,
+        draw: trades.filter((t) => t.status === 'DRAW').length,
+      },
+      profit: {
+        total: trades.reduce((sum, t) => sum + (t.profit?.toNumber() || 0), 0),
+        average: trades.length > 0
+          ? trades.reduce((sum, t) => sum + (t.profit?.toNumber() || 0), 0) / trades.length
+          : 0,
+        best: Math.max(...trades.map((t) => t.profit?.toNumber() || 0), 0),
+        worst: Math.min(...trades.map((t) => t.profit?.toNumber() || 0), 0),
+      },
+      streaks: {
+        current: currentStreak,
+        best: bestStreak,
+        worst: worstStreak,
+      },
+      dailyPnL,
+      assetStats,
+      recentTrades: trades.slice(0, 20),
+    };
+  }
+
+  /**
+   * Get follower statistics for a copy trader
+   */
+  async getFollowerStatistics(copyTraderId: string) {
+    const relationships = await prisma.copyRelationship.findMany({
+      where: { masterTraderId: copyTraderId },
+      include: {
+        follower: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    const active = relationships.filter((r) => r.status === CopyRelationshipStatus.ACTIVE);
+    const paused = relationships.filter((r) => r.status === CopyRelationshipStatus.PAUSED);
+    const stopped = relationships.filter((r) => r.status === CopyRelationshipStatus.STOPPED);
+
+    const totalCopiedTrades = relationships.reduce((sum, r) => sum + r.totalCopied, 0);
+    const totalProfit = relationships.reduce((sum, r) => sum + r.totalProfit.toNumber(), 0);
+
+    return {
+      total: relationships.length,
+      active: active.length,
+      paused: paused.length,
+      stopped: stopped.length,
+      totalCopiedTrades,
+      totalProfit,
+      relationships: active.map((r) => ({
+        id: r.id,
+        follower: r.follower,
+        copyMode: r.copyMode,
+        copyAmount: r.copyAmount,
+        copyPercent: r.copyPercent,
+        totalCopied: r.totalCopied,
+        totalProfit: r.totalProfit,
+        startedAt: r.startedAt,
+      })),
+    };
+  }
 }
 
 export default new CopyTradingService();

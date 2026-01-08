@@ -164,11 +164,28 @@ export const savingsAPI = {
 
 // Copy Trading API
 export const copyTradingAPI = {
-  getTraders: (params?: any) => api.get('/copy-trading/traders', { params }),
-  apply: (data: any) => api.post('/copy-trading/apply', data),
-  follow: (traderId: string, data: any) => api.post(`/copy-trading/follow/${traderId}`, data),
-  unfollow: (traderId: string) => api.delete(`/copy-trading/follow/${traderId}`),
-  getMyRelationships: () => api.get('/copy-trading/my-relationships'),
+  // Browse traders
+  getCopyTraders: (params?: any) => api.get('/copy-trading/traders', { params }),
+  getTraderDetails: (traderId: string) => api.get(`/copy-trading/traders/${traderId}`),
+  getTraderPerformance: (traderId: string, days?: number) =>
+    api.get(`/copy-trading/traders/${traderId}/performance`, { params: { days } }),
+  getTraderFollowers: (traderId: string) => api.get(`/copy-trading/traders/${traderId}/followers`),
+
+  // Follow/Unfollow
+  followTrader: (traderId: string, config: any) => api.post(`/copy-trading/follow/${traderId}`, config),
+  unfollowTrader: (traderId: string) => api.post(`/copy-trading/unfollow/${traderId}`),
+  pauseCopyRelationship: (traderId: string) => api.post(`/copy-trading/pause/${traderId}`),
+  resumeCopyRelationship: (traderId: string) => api.post(`/copy-trading/resume/${traderId}`),
+  updateCopySettings: (traderId: string, config: any) =>
+    api.put(`/copy-trading/settings/${traderId}`, config),
+
+  // My relationships
+  getMyFollowing: () => api.get('/copy-trading/my-following'),
+
+  // My profile (as copy trader)
+  getMyCopyTraderProfile: () => api.get('/copy-trading/my-profile'),
+  applyAsCopyTrader: (data: any) => api.post('/copy-trading/apply', data),
+  updateCopyTraderProfile: (data: any) => api.put('/copy-trading/my-profile', data),
 };
 
 // Affiliate API
