@@ -6,6 +6,7 @@ import { TradingDashboard } from './pages/TradingDashboard';
 import { FinancePage } from './pages/FinancePage';
 import { AdminWalletsPage } from './pages/AdminWalletsPage';
 import { AffiliatePage } from './pages/AffiliatePage';
+import { ProfilePage } from './pages/ProfilePage';
 import { useAuthStore } from './store/authStore';
 
 const queryClient = new QueryClient({
@@ -69,6 +70,14 @@ function App() {
             element={
               <PrivateRoute>
                 <AffiliatePage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <ProfilePage />
               </PrivateRoute>
             }
           />

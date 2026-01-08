@@ -144,6 +144,35 @@ export const affiliateAPI = {
   adminGetDetails: (affiliateId: string) => api.get(`/affiliate/admin/${affiliateId}/details`),
 };
 
+// Profile API
+export const profileAPI = {
+  // User profile
+  getProfile: () => api.get('/profile'),
+  updateProfile: (data: any) => api.put('/profile', data),
+
+  // KYC
+  uploadKYC: (data: any) => api.post('/profile/kyc', data),
+
+  // Security
+  changePassword: (data: any) => api.post('/profile/change-password', data),
+  getSessions: () => api.get('/profile/sessions'),
+  revokeSession: (sessionId: string) => api.delete(`/profile/sessions/${sessionId}`),
+  revokeAllSessions: () => api.delete('/profile/sessions'),
+
+  // Activity
+  getActivity: (limit?: number) => api.get('/profile/activity', { params: { limit } }),
+
+  // Notifications
+  updateNotifications: (preferences: any) => api.put('/profile/notifications', { preferences }),
+
+  // Admin endpoints
+  adminGetProfile: (userId: string) => api.get(`/profile/admin/${userId}`),
+  adminGetPendingKYC: (limit?: number) => api.get('/profile/admin/kyc/pending', { params: { limit } }),
+  adminVerifyKYC: (userId: string, data: any) => api.post(`/profile/admin/kyc/${userId}/verify`, data),
+  adminUpdateStatus: (userId: string, data: any) => api.put(`/profile/admin/${userId}/status`, data),
+  adminAdjustBalance: (userId: string, data: any) => api.post(`/profile/admin/${userId}/adjust-balance`, data),
+};
+
 // Admin API
 export const adminAPI = {
   getUsers: (params?: any) => api.get('/admin/users', { params }),

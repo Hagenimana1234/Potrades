@@ -7,6 +7,7 @@ import { strictLimiter, tradeLimiter } from '../middleware/rateLimiter.middlewar
 import healthRoutes from './health.routes';
 import financeRoutes from './finance.routes';
 import affiliateRoutes from './affiliate.routes';
+import profileRoutes from './profile.routes';
 
 const router = Router();
 
@@ -18,6 +19,9 @@ router.use('/finance', financeRoutes);
 
 // Affiliate routes (referrals, commissions)
 router.use('/affiliate', affiliateRoutes);
+
+// Profile routes (user info, KYC, security, activity)
+router.use('/profile', profileRoutes);
 
 // ==================== AUTH ROUTES ====================
 router.post('/auth/register', strictLimiter, authController.register);
