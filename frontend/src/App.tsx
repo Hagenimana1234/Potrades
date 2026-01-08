@@ -13,6 +13,7 @@ import { TradesPage } from './pages/TradesPage';
 import { SocialTradingPage } from './pages/SocialTradingPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SignalsPage } from './pages/SignalsPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { useAuthStore } from './store/authStore';
 
 const queryClient = new QueryClient({
@@ -132,6 +133,14 @@ function App() {
             element={
               <PrivateRoute>
                 <SignalsPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <PrivateRoute>
+                <NotificationsPage />
               </PrivateRoute>
             }
           />

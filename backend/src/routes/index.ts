@@ -14,6 +14,7 @@ import tradesRoutes from './trades.routes';
 import copyTradingRoutes from './copyTrading.routes';
 import settingsRoutes from './settings.routes';
 import signalsRoutes from './signals.routes';
+import notificationsRoutes from './notifications.routes';
 
 const router = Router();
 
@@ -46,6 +47,9 @@ router.use('/settings', settingsRoutes);
 
 // Signals routes (trading signals, subscriptions, performance)
 router.use('/signals', signalsRoutes);
+
+// Notifications routes (in-app notifications, alerts)
+router.use('/notifications', notificationsRoutes);
 
 // ==================== AUTH ROUTES ====================
 router.post('/auth/register', strictLimiter, authController.register);

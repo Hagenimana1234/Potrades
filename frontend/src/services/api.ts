@@ -188,6 +188,22 @@ export const copyTradingAPI = {
   updateCopyTraderProfile: (data: any) => api.put('/copy-trading/my-profile', data),
 };
 
+// Notifications API
+export const notificationsAPI = {
+  // Get notifications
+  getNotifications: (params?: any) => api.get('/notifications', { params }),
+  getNotificationById: (notificationId: string) => api.get(`/notifications/${notificationId}`),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  getStats: (days?: number) => api.get('/notifications/stats', { params: { days } }),
+
+  // Actions
+  markAsRead: (notificationId: string) => api.post(`/notifications/${notificationId}/read`),
+  markAllAsRead: () => api.post('/notifications/read-all'),
+  archiveNotification: (notificationId: string) => api.post(`/notifications/${notificationId}/archive`),
+  deleteNotification: (notificationId: string) => api.delete(`/notifications/${notificationId}`),
+  deleteAllNotifications: (olderThan?: string) => api.delete('/notifications', { params: { olderThan } }),
+};
+
 // Signals API
 export const signalsAPI = {
   // Browse signals
