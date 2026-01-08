@@ -8,6 +8,7 @@ import { AdminWalletsPage } from './pages/AdminWalletsPage';
 import { AffiliatePage } from './pages/AffiliatePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { MarketPage } from './pages/MarketPage';
+import { MySafePage } from './pages/MySafePage';
 import { useAuthStore } from './store/authStore';
 
 const queryClient = new QueryClient({
@@ -87,6 +88,14 @@ function App() {
             element={
               <PrivateRoute>
                 <MarketPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/my-safe"
+            element={
+              <PrivateRoute>
+                <MySafePage />
               </PrivateRoute>
             }
           />

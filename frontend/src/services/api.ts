@@ -124,6 +124,26 @@ export const marketAPI = {
   removeFavorite: (assetId: string) => api.delete(`/market/favorites/${assetId}`),
 };
 
+// Savings API (My Safe)
+export const savingsAPI = {
+  // Plans
+  getPlans: () => api.get('/savings/plans'),
+  estimateReturns: (data: any) => api.post('/savings/estimate', data),
+
+  // User savings
+  getMySavings: () => api.get('/savings/my-savings'),
+  getAnalytics: () => api.get('/savings/analytics'),
+  deposit: (data: any) => api.post('/savings/deposit', data),
+  withdraw: (depositId: string) => api.post(`/savings/withdraw/${depositId}`),
+
+  // Admin
+  adminGetDeposits: (params?: any) => api.get('/savings/admin/deposits', { params }),
+  adminGetPlans: () => api.get('/savings/admin/plans'),
+  adminCreatePlan: (data: any) => api.post('/savings/admin/plans', data),
+  adminUpdatePlan: (planId: string, data: any) => api.put(`/savings/admin/plans/${planId}`, data),
+  adminDeletePlan: (planId: string) => api.delete(`/savings/admin/plans/${planId}`),
+};
+
 // Copy Trading API
 export const copyTradingAPI = {
   getTraders: (params?: any) => api.get('/copy-trading/traders', { params }),

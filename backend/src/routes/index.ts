@@ -9,6 +9,7 @@ import financeRoutes from './finance.routes';
 import affiliateRoutes from './affiliate.routes';
 import profileRoutes from './profile.routes';
 import marketRoutes from './market.routes';
+import savingsRoutes from './savings.routes';
 
 const router = Router();
 
@@ -17,6 +18,9 @@ router.use('/', healthRoutes);
 
 // Market routes (assets, favorites, market data)
 router.use('/market', marketRoutes);
+
+// Savings routes (My Safe - savings plans, deposits, withdrawals)
+router.use('/savings', savingsRoutes);
 
 // Finance routes (deposits, withdrawals, transactions)
 router.use('/finance', financeRoutes);
