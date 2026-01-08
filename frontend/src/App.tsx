@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { LoginPage } from './pages/LoginPage';
 import { TradingDashboard } from './pages/TradingDashboard';
 import { FinancePage } from './pages/FinancePage';
+import { AdminWalletsPage } from './pages/AdminWalletsPage';
 import { useAuthStore } from './store/authStore';
 
 const queryClient = new QueryClient({
@@ -51,6 +52,14 @@ function App() {
             element={
               <PrivateRoute>
                 <FinancePage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/wallets"
+            element={
+              <PrivateRoute>
+                <AdminWalletsPage />
               </PrivateRoute>
             }
           />

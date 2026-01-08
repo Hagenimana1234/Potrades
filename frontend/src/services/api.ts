@@ -93,7 +93,7 @@ export const financeAPI = {
   getTransactions: (params?: any) => api.get('/finance/transactions', { params }),
   getPnL: () => api.get('/finance/pnl'),
 
-  // Admin endpoints
+  // Admin endpoints - Deposits & Withdrawals
   getPendingDeposits: () => api.get('/finance/admin/deposits/pending'),
   approveDeposit: (id: string) => api.post(`/finance/admin/deposits/${id}/approve`),
   rejectDeposit: (id: string, rejectionReason: string) =>
@@ -103,6 +103,12 @@ export const financeAPI = {
     api.post(`/finance/admin/withdrawals/${id}/approve`, { txHash }),
   rejectWithdrawal: (id: string, rejectionReason: string) =>
     api.post(`/finance/admin/withdrawals/${id}/reject`, { rejectionReason }),
+
+  // Admin endpoints - Platform Wallets
+  getAllPlatformWallets: () => api.get('/finance/admin/wallets'),
+  createPlatformWallet: (data: any) => api.post('/finance/admin/wallets', data),
+  updatePlatformWallet: (network: string, data: any) => api.put(`/finance/admin/wallets/${network}`, data),
+  deactivatePlatformWallet: (network: string) => api.delete(`/finance/admin/wallets/${network}`),
 };
 
 // Copy Trading API

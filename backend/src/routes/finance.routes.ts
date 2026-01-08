@@ -503,4 +503,146 @@ router.post(
   }
 );
 
+// ==================== ADMIN PLATFORM WALLET ROUTES ====================
+
+/**
+ * GET /finance/admin/wallets
+ * Get all platform wallets (Admin only)
+ */
+router.get('/admin/wallets', authenticate, authorize(['ADMIN']), async (req, res) => {
+  try {
+    const wallets = await financeService.getAllPlatformWallets();
+
+    res.json({
+      success: true,
+      data: wallets,
+    });
+  } catch (error: any) {
+    logger.error('Get all platform wallets error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch platform wallets',
+    });
+  }
+});
+
+/**
+ * POST /finance/admin/wallets
+ * Create platform wallet (Admin only)
+ */
+router.post(
+  '/admin/wallets',
+  authenticate,
+  authorize(['ADMIN']),
+  [
+    body('network').isString().withMessage('Network is required'),
+    body('address').isString().withMessage('Address is required'),
+    body('label').optional().isString(),
+    body('notes').optional().isString(),
+    body('qrCode').optional().isString(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const { network, address, label, notes, qrCode } = req.body;
+
+      const wallet = await financeService.createPlatformWallet({
+        network,
+        address,
+        label,
+        notes,
+        qrCode,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: wallet,
+        message: 'Platform wallet created successfully',
+      });
+    } catch (error: any) {
+      logger.error('Create platform wallet error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Failed to create platform wallet',
+      });
+    }
+  }
+);
+
+/**
+ * PUT /finance/admin/wallets/:network
+ * Update platform wallet (Admin only)
+ */
+router.put(
+  '/admin/wallets/:network',
+  authenticate,
+  authorize(['ADMIN']),
+  [
+    param('network').isString(),
+    body('address').optional().isString(),
+    body('label').optional().isString(),
+    body('notes').optional().isString(),
+    body('qrCode').optional().isString(),
+    body('isActive').optional().isBoolean(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const network = req.params.network;
+      const { address, label, notes, qrCode, isActive } = req.body;
+
+      const wallet = await financeService.updatePlatformWallet(network, {
+        address,
+        label,
+        notes,
+        qrCode,
+        isActive,
+      });
+
+      res.json({
+        success: true,
+        data: wallet,
+        message: 'Platform wallet updated successfully',
+      });
+    } catch (error: any) {
+      logger.error('Update platform wallet error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Failed to update platform wallet',
+      });
+    }
+  }
+);
+
+/**
+ * DELETE /finance/admin/wallets/:network
+ * Deactivate platform wallet (Admin only)
+ */
+router.delete(
+  '/admin/wallets/:network',
+  authenticate,
+  authorize(['ADMIN']),
+  [param('network').isString()],
+  validate,
+  async (req, res) => {
+    try {
+      const network = req.params.network;
+
+      const wallet = await financeService.deactivatePlatformWallet(network);
+
+      res.json({
+        success: true,
+        data: wallet,
+        message: 'Platform wallet deactivated successfully',
+      });
+    } catch (error: any) {
+      logger.error('Deactivate platform wallet error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Failed to deactivate platform wallet',
+      });
+    }
+  }
+);
+
 export default router;

@@ -66,6 +66,105 @@ class FinanceService {
   }
 
   /**
+   * Get all platform wallets (Admin only)
+   */
+  async getAllPlatformWallets() {
+    return await prisma.platformWallet.findMany({
+      orderBy: { network: 'asc' },
+    });
+  }
+
+  /**
+   * Create platform wallet (Admin only)
+   */
+  async createPlatformWallet(data: {
+    network: string;
+    address: string;
+    label?: string;
+    notes?: string;
+    qrCode?: string;
+  }) {
+    const { network, address, label, notes, qrCode } = data;
+
+    // Check if wallet already exists
+    const existing = await prisma.platformWallet.findUnique({
+      where: { network: network as any },
+    });
+
+    if (existing) {
+      throw new Error(`Platform wallet for ${network} already exists`);
+    }
+
+    const wallet = await prisma.platformWallet.create({
+      data: {
+        network: network as any,
+        address,
+        label,
+        notes,
+        qrCode,
+        isActive: true,
+      },
+    });
+
+    logger.info(`Platform wallet created: ${network} - ${address}`);
+
+    return wallet;
+  }
+
+  /**
+   * Update platform wallet (Admin only)
+   */
+  async updatePlatformWallet(
+    network: string,
+    data: {
+      address?: string;
+      label?: string;
+      notes?: string;
+      qrCode?: string;
+      isActive?: boolean;
+    }
+  ) {
+    const wallet = await prisma.platformWallet.findUnique({
+      where: { network: network as any },
+    });
+
+    if (!wallet) {
+      throw new Error(`Platform wallet for ${network} not found`);
+    }
+
+    const updated = await prisma.platformWallet.update({
+      where: { network: network as any },
+      data,
+    });
+
+    logger.info(`Platform wallet updated: ${network}`);
+
+    return updated;
+  }
+
+  /**
+   * Deactivate platform wallet (Admin only)
+   */
+  async deactivatePlatformWallet(network: string) {
+    const wallet = await prisma.platformWallet.findUnique({
+      where: { network: network as any },
+    });
+
+    if (!wallet) {
+      throw new Error(`Platform wallet for ${network} not found`);
+    }
+
+    const updated = await prisma.platformWallet.update({
+      where: { network: network as any },
+      data: { isActive: false },
+    });
+
+    logger.info(`Platform wallet deactivated: ${network}`);
+
+    return updated;
+  }
+
+  /**
    * Create a deposit request
    * For crypto: User submits tx hash and proof
    * Waits for admin approval

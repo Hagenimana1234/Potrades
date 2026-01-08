@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/utils/crypto';
+import { seedPlatformWallets } from './seeds/platformWallets.seed';
 
 const prisma = new PrismaClient();
 
@@ -209,6 +210,9 @@ async function main() {
   }
 
   console.log('✓ System settings created');
+
+  // Seed platform wallet addresses
+  await seedPlatformWallets();
 
   console.log('✅ Database seeded successfully!');
   console.log('\nDefault credentials:');
