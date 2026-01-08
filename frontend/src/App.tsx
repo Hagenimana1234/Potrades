@@ -11,6 +11,7 @@ import { MarketPage } from './pages/MarketPage';
 import { MySafePage } from './pages/MySafePage';
 import { TradesPage } from './pages/TradesPage';
 import { SocialTradingPage } from './pages/SocialTradingPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { useAuthStore } from './store/authStore';
 
 const queryClient = new QueryClient({
@@ -114,6 +115,14 @@ function App() {
             element={
               <PrivateRoute>
                 <SocialTradingPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <PrivateRoute>
+                <SettingsPage />
               </PrivateRoute>
             }
           />

@@ -188,6 +188,27 @@ export const copyTradingAPI = {
   updateCopyTraderProfile: (data: any) => api.put('/copy-trading/my-profile', data),
 };
 
+// Settings API
+export const settingsAPI = {
+  // General settings
+  getSettings: () => api.get('/settings'),
+  updateSettings: (data: any) => api.put('/settings', data),
+  resetSettings: () => api.post('/settings/reset'),
+
+  // Notifications
+  getNotificationPreferences: () => api.get('/settings/notifications'),
+  updateNotificationPreferences: (data: any) => api.put('/settings/notifications', data),
+
+  // Security
+  getSecuritySettings: () => api.get('/settings/security'),
+  changePassword: (data: any) => api.post('/settings/security/password', data),
+  setup2FA: () => api.post('/settings/security/2fa/setup'),
+  enable2FA: (data: any) => api.post('/settings/security/2fa/enable', data),
+  disable2FA: (data: any) => api.post('/settings/security/2fa/disable', data),
+  getSessions: () => api.get('/settings/security/sessions'),
+  logoutAllSessions: () => api.post('/settings/security/logout-all'),
+};
+
 // Affiliate API
 export const affiliateAPI = {
   // User endpoints

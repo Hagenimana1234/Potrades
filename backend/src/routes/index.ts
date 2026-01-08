@@ -12,6 +12,7 @@ import marketRoutes from './market.routes';
 import savingsRoutes from './savings.routes';
 import tradesRoutes from './trades.routes';
 import copyTradingRoutes from './copyTrading.routes';
+import settingsRoutes from './settings.routes';
 
 const router = Router();
 
@@ -38,6 +39,9 @@ router.use('/affiliate', affiliateRoutes);
 
 // Profile routes (user info, KYC, security, activity)
 router.use('/profile', profileRoutes);
+
+// Settings routes (preferences, notifications, security)
+router.use('/settings', settingsRoutes);
 
 // ==================== AUTH ROUTES ====================
 router.post('/auth/register', strictLimiter, authController.register);
