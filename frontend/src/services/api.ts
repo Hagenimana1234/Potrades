@@ -188,6 +188,35 @@ export const copyTradingAPI = {
   updateCopyTraderProfile: (data: any) => api.put('/copy-trading/my-profile', data),
 };
 
+// Signals API
+export const signalsAPI = {
+  // Browse signals
+  getSignals: (params?: any) => api.get('/signals', { params }),
+  getActiveSignals: (assetId?: string, limit?: number) =>
+    api.get('/signals/active', { params: { assetId, limit } }),
+  getSignalById: (signalId: string) => api.get(`/signals/${signalId}`),
+
+  // My signals (for providers)
+  getMySignals: (status?: string) => api.get('/signals/my-signals', { params: { status } }),
+  createSignal: (data: any) => api.post('/signals', data),
+  updateSignal: (signalId: string, data: any) => api.put(`/signals/${signalId}`, data),
+  closeSignal: (signalId: string, data: { exitPrice: number }) => api.post(`/signals/${signalId}/close`, data),
+  deleteSignal: (signalId: string) => api.delete(`/signals/${signalId}`),
+
+  // Subscriptions
+  getMySubscriptions: () => api.get('/signals/my-subscriptions'),
+  subscribeToSignal: (signalId: string, data: { autoCopy?: boolean; copyAmount?: number }) =>
+    api.post(`/signals/${signalId}/subscribe`, data),
+  unsubscribeFromSignal: (signalId: string) => api.delete(`/signals/${signalId}/subscribe`),
+  updateSubscription: (signalId: string, data: { autoCopy: boolean; copyAmount?: number }) =>
+    api.put(`/signals/${signalId}/subscribe`, data),
+
+  // Stats
+  getGlobalStats: (days?: number) => api.get('/signals/stats', { params: { days } }),
+  getProviderPerformance: (userId: string, days?: number) =>
+    api.get(`/signals/provider/${userId}/performance`, { params: { days } }),
+};
+
 // Settings API
 export const settingsAPI = {
   // General settings
