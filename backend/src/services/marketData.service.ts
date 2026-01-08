@@ -1,8 +1,9 @@
-import prisma from '../utils/database';
-import logger from '../utils/logger';
-import { cache } from '../utils/redis';
+import { prisma } from '../lib/prisma';
+import { logger } from '../utils/logger';
 import { EventEmitter } from 'events';
 import { Decimal } from 'decimal.js';
+import axios from 'axios';
+import { priceOrchestrationService } from './priceOrchestration.service';
 
 export interface PriceUpdate {
   assetId: string;
@@ -27,6 +28,20 @@ class MarketDataService extends EventEmitter {
   private currentPrices: Map<string, number> = new Map();
   private readonly PRICE_UPDATE_INTERVAL = 1000; // 1 second
   private readonly CACHE_TTL = 60; // 1 minute
+
+  // External API configuration
+  private readonly BINANCE_BASE_URL = 'https://api.binance.com/api/v3';
+  private readonly TWELVEDATA_BASE_URL = 'https://api.twelvedata.com';
+  private readonly TWELVEDATA_API_KEY = process.env.TWELVEDATA_API_KEY || '';
+
+  // Rate limiting for external APIs
+  private lastBinanceRequest = 0;
+  private lastTwelveDataRequest = 0;
+  private readonly BINANCE_RATE_LIMIT = 100; // ms
+  private readonly TWELVEDATA_RATE_LIMIT = 1000; // ms
+
+  // Seed price cache
+  private seedPriceCache: Map<string, { price: number; timestamp: number }> = new Map();
 
   constructor() {
     super();
@@ -139,36 +154,184 @@ class MarketDataService extends EventEmitter {
   }
 
   /**
-   * Generate next price based on random walk with realistic volatility
+   * Generate next price using POL with real market data as seed
+   * This is the integration point between external data and POL
    */
   private async generateNextPrice(
     assetId: string,
     symbol: string,
     currentPrice: number
   ): Promise<number> {
-    // Volatility parameters by asset type
-    const volatility = this.getVolatilityForSymbol(symbol);
+    try {
+      // Get asset details to determine type
+      const asset = await prisma.asset.findUnique({
+        where: { id: assetId },
+        select: { type: true },
+      });
 
-    // Random walk with mean reversion
-    const randomChange = (Math.random() - 0.5) * 2; // -1 to 1
+      if (!asset) {
+        throw new Error(`Asset ${assetId} not found`);
+      }
+
+      // Get seed price from external source
+      let seedPrice = await this.getSeedPrice(symbol, asset.type);
+
+      // If seed price unavailable, use simulated price
+      if (!seedPrice) {
+        seedPrice = await this.generateSimulatedSeedPrice(symbol, currentPrice);
+      }
+
+      // Calculate platform exposure for risk-based skewing
+      const platformExposure = await priceOrchestrationService.calculatePlatformExposure(assetId);
+
+      // Generate synthetic price through POL
+      const syntheticPrice = await priceOrchestrationService.generateSyntheticPrice({
+        assetId,
+        seedPrice,
+        timestamp: new Date(),
+        platformExposure,
+      });
+
+      return syntheticPrice;
+    } catch (error: any) {
+      logger.error(`Error generating price for ${symbol}: ${error.message}`);
+      // Fallback to simulated price
+      return this.generateSimulatedSeedPrice(symbol, currentPrice);
+    }
+  }
+
+  /**
+   * Get seed price from external market data sources
+   * CRITICAL: This is where real Binance/Twelve Data integration happens
+   */
+  private async getSeedPrice(symbol: string, assetType: string): Promise<number | null> {
+    // Check cache first (5 second TTL to reduce API calls)
+    const cacheKey = `seed:${symbol}`;
+    const cached = this.seedPriceCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < 5000) {
+      return cached.price;
+    }
+
+    let seedPrice: number | null = null;
+
+    try {
+      if (assetType === 'CRYPTO') {
+        seedPrice = await this.getBinanceSeedPrice(symbol);
+      } else if (assetType === 'FOREX') {
+        seedPrice = await this.getTwelveDataSeedPrice(symbol);
+      }
+
+      if (seedPrice) {
+        this.seedPriceCache.set(cacheKey, {
+          price: seedPrice,
+          timestamp: Date.now(),
+        });
+      }
+
+      return seedPrice;
+    } catch (error: any) {
+      logger.error(`Failed to get seed price for ${symbol}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Get seed price from Binance for crypto assets
+   */
+  private async getBinanceSeedPrice(symbol: string): Promise<number | null> {
+    try {
+      await this.rateLimitBinance();
+
+      // Convert symbol format: BTC/USD -> BTCUSDT
+      const binanceSymbol = symbol.replace('/', '') + 'T';
+
+      const response = await axios.get(`${this.BINANCE_BASE_URL}/ticker/price`, {
+        params: { symbol: binanceSymbol },
+        timeout: 3000,
+      });
+
+      return parseFloat(response.data.price);
+    } catch (error: any) {
+      // Try alternative format
+      try {
+        const altSymbol = symbol.replace('/', '');
+        const response = await axios.get(`${this.BINANCE_BASE_URL}/ticker/price`, {
+          params: { symbol: altSymbol },
+          timeout: 3000,
+        });
+        return parseFloat(response.data.price);
+      } catch {
+        logger.warn(`Binance price unavailable for ${symbol}`);
+        return null;
+      }
+    }
+  }
+
+  /**
+   * Get seed price from Twelve Data for forex assets
+   */
+  private async getTwelveDataSeedPrice(symbol: string): Promise<number | null> {
+    if (!this.TWELVEDATA_API_KEY) {
+      logger.warn('Twelve Data API key not configured');
+      return null;
+    }
+
+    try {
+      await this.rateLimitTwelveData();
+
+      const response = await axios.get(`${this.TWELVEDATA_BASE_URL}/price`, {
+        params: {
+          symbol: symbol.replace('/', ''),
+          apikey: this.TWELVEDATA_API_KEY,
+        },
+        timeout: 3000,
+      });
+
+      return parseFloat(response.data.price);
+    } catch (error: any) {
+      logger.warn(`Twelve Data price unavailable for ${symbol}`);
+      return null;
+    }
+  }
+
+  /**
+   * Generate simulated seed price when external APIs are unavailable
+   * Uses realistic random walk
+   */
+  private async generateSimulatedSeedPrice(symbol: string, currentPrice: number): Promise<number> {
+    const volatility = this.getVolatilityForSymbol(symbol);
+    const randomChange = (Math.random() - 0.5) * 2;
     const changePercent = randomChange * volatility;
 
-    // Apply change
     const priceDecimal = new Decimal(currentPrice);
     const change = priceDecimal.times(changePercent).dividedBy(100);
     const newPrice = priceDecimal.plus(change);
 
-    // Ensure price is positive and round appropriately
-    const finalPrice = Math.max(newPrice.toNumber(), 0.01);
+    return Math.max(newPrice.toNumber(), 0.01);
+  }
 
-    // Round based on price magnitude
-    if (finalPrice > 1000) {
-      return Math.round(finalPrice * 100) / 100; // 2 decimals
-    } else if (finalPrice > 1) {
-      return Math.round(finalPrice * 10000) / 10000; // 4 decimals
-    } else {
-      return Math.round(finalPrice * 100000) / 100000; // 5 decimals
+  /**
+   * Rate limiting for Binance
+   */
+  private async rateLimitBinance(): Promise<void> {
+    const now = Date.now();
+    const elapsed = now - this.lastBinanceRequest;
+    if (elapsed < this.BINANCE_RATE_LIMIT) {
+      await new Promise((resolve) => setTimeout(resolve, this.BINANCE_RATE_LIMIT - elapsed));
     }
+    this.lastBinanceRequest = Date.now();
+  }
+
+  /**
+   * Rate limiting for Twelve Data
+   */
+  private async rateLimitTwelveData(): Promise<void> {
+    const now = Date.now();
+    const elapsed = now - this.lastTwelveDataRequest;
+    if (elapsed < this.TWELVEDATA_RATE_LIMIT) {
+      await new Promise((resolve) => setTimeout(resolve, this.TWELVEDATA_RATE_LIMIT - elapsed));
+    }
+    this.lastTwelveDataRequest = Date.now();
   }
 
   /**
@@ -209,17 +372,12 @@ class MarketDataService extends EventEmitter {
 
   /**
    * Get current price (from memory or database)
+   * Returns the latest synthetic price generated through POL
    */
   async getCurrentPrice(assetId: string): Promise<number | null> {
     // Check memory first
     if (this.currentPrices.has(assetId)) {
       return this.currentPrices.get(assetId)!;
-    }
-
-    // Check cache
-    const cached = await cache.get<number>(`price:${assetId}`);
-    if (cached) {
-      return cached;
     }
 
     // Get from database
@@ -230,7 +388,6 @@ class MarketDataService extends EventEmitter {
 
     if (priceRecord) {
       const price = priceRecord.price.toNumber();
-      await cache.set(`price:${assetId}`, price, this.CACHE_TTL);
       return price;
     }
 
