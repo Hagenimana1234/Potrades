@@ -153,6 +153,158 @@ router.get('/referrals', authenticate, async (req, res) => {
   }
 });
 
+// ==================== ANALYTICS ROUTES ====================
+
+/**
+ * GET /affiliate/analytics
+ * Get performance analytics for current affiliate
+ */
+router.get(
+  '/analytics',
+  authenticate,
+  [query('days').optional().isInt({ min: 1, max: 365 })],
+  validate,
+  async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const days = req.query.days ? parseInt(req.query.days as string) : 30;
+
+      const affiliate = await affiliateService.getAffiliateDetails(userId);
+      const analytics = await affiliateService.getPerformanceAnalytics(affiliate.id, days);
+
+      res.json({
+        success: true,
+        data: analytics,
+      });
+    } catch (error: any) {
+      logger.error('Get analytics error:', error);
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: error.message || 'Failed to fetch analytics',
+      });
+    }
+  }
+);
+
+// ==================== PAYOUT ROUTES ====================
+
+/**
+ * POST /affiliate/payouts/request
+ * Request a payout
+ */
+router.post(
+  '/payouts/request',
+  authenticate,
+  [
+    body('amount').isFloat({ min: 0.01 }),
+    body('method').isString().isIn(['BANK_TRANSFER', 'CRYPTO', 'PAYPAL', 'WISE']),
+    body('destination').isObject(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { amount, method, destination } = req.body;
+
+      const affiliate = await affiliateService.getAffiliateDetails(userId);
+      const payout = await affiliateService.requestPayout({
+        affiliateId: affiliate.id,
+        amount,
+        method,
+        destination,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: payout,
+        message: 'Payout request submitted successfully',
+      });
+    } catch (error: any) {
+      logger.error('Request payout error:', error);
+      res.status(error.statusCode || 400).json({
+        success: false,
+        error: error.message || 'Failed to request payout',
+      });
+    }
+  }
+);
+
+/**
+ * GET /affiliate/payouts
+ * Get payout history
+ */
+router.get('/payouts', authenticate, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+
+    const affiliate = await affiliateService.getAffiliateDetails(userId);
+    const payouts = await affiliateService.getAffiliatePayouts(affiliate.id);
+
+    res.json({
+      success: true,
+      data: payouts,
+    });
+  } catch (error: any) {
+    logger.error('Get payouts error:', error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || 'Failed to fetch payouts',
+    });
+  }
+});
+
+// ==================== CONTEST ROUTES ====================
+
+/**
+ * GET /affiliate/contests
+ * Get active and upcoming contests
+ */
+router.get('/contests', authenticate, async (req, res) => {
+  try {
+    const contests = await affiliateService.getActiveContests();
+
+    res.json({
+      success: true,
+      data: contests,
+    });
+  } catch (error: any) {
+    logger.error('Get contests error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch contests',
+    });
+  }
+});
+
+/**
+ * GET /affiliate/contests/:contestId/leaderboard
+ * Get contest leaderboard
+ */
+router.get(
+  '/contests/:contestId/leaderboard',
+  authenticate,
+  [param('contestId').isString()],
+  validate,
+  async (req, res) => {
+    try {
+      const contestId = req.params.contestId;
+
+      const leaderboard = await affiliateService.getContestLeaderboard(contestId);
+
+      res.json({
+        success: true,
+        data: leaderboard,
+      });
+    } catch (error: any) {
+      logger.error('Get leaderboard error:', error);
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: error.message || 'Failed to fetch leaderboard',
+      });
+    }
+  }
+);
+
 // ==================== ADMIN AFFILIATE ROUTES ====================
 
 /**
@@ -401,6 +553,330 @@ router.get(
       res.status(error.statusCode || 500).json({
         success: false,
         error: error.message || 'Failed to fetch affiliate details',
+      });
+    }
+  }
+);
+
+// ==================== ADMIN PAYOUT ROUTES ====================
+
+/**
+ * GET /affiliate/admin/payouts/pending
+ * Get pending payout requests (Admin only)
+ */
+router.get(
+  '/admin/payouts/pending',
+  authenticate,
+  authorize(['ADMIN', 'SUPPORT']),
+  async (req, res) => {
+    try {
+      const payouts = await affiliateService.adminGetPendingPayouts();
+
+      res.json({
+        success: true,
+        data: payouts,
+      });
+    } catch (error: any) {
+      logger.error('Get pending payouts error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to fetch pending payouts',
+      });
+    }
+  }
+);
+
+/**
+ * POST /affiliate/admin/payouts/:payoutId/process
+ * Process payout (approve/reject) (Admin only)
+ */
+router.post(
+  '/admin/payouts/:payoutId/process',
+  authenticate,
+  authorize(['ADMIN']),
+  [
+    param('payoutId').isString(),
+    body('status').isString().isIn(['COMPLETED', 'REJECTED']),
+    body('txHash').optional().isString(),
+    body('notes').optional().isString(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const payoutId = req.params.payoutId;
+      const adminId = req.user!.id;
+      const { status, txHash, notes } = req.body;
+
+      const payout = await affiliateService.processPayout(payoutId, adminId, {
+        status,
+        txHash,
+        notes,
+      });
+
+      res.json({
+        success: true,
+        data: payout,
+        message: `Payout ${status === 'COMPLETED' ? 'approved' : 'rejected'} successfully`,
+      });
+    } catch (error: any) {
+      logger.error('Process payout error:', error);
+      res.status(error.statusCode || 400).json({
+        success: false,
+        error: error.message || 'Failed to process payout',
+      });
+    }
+  }
+);
+
+// ==================== ADMIN PLAN ROUTES ====================
+
+/**
+ * GET /affiliate/admin/plans
+ * Get all affiliate plans (Admin only)
+ */
+router.get(
+  '/admin/plans',
+  authenticate,
+  authorize(['ADMIN', 'SUPPORT']),
+  async (req, res) => {
+    try {
+      const plans = await affiliateService.adminGetPlans();
+
+      res.json({
+        success: true,
+        data: plans,
+      });
+    } catch (error: any) {
+      logger.error('Get plans error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to fetch plans',
+      });
+    }
+  }
+);
+
+/**
+ * POST /affiliate/admin/plans
+ * Create affiliate plan (Admin only)
+ */
+router.post(
+  '/admin/plans',
+  authenticate,
+  authorize(['ADMIN']),
+  [
+    body('name').isString().isLength({ min: 1, max: 100 }),
+    body('description').optional().isString(),
+    body('status').optional().isString().isIn(['ACTIVE', 'INACTIVE']),
+    body('commissionModel').isString().isIn(['CPA', 'REVENUE_SHARE', 'HYBRID']),
+    body('cpaAmount').optional().isFloat({ min: 0 }),
+    body('revenueSharePercent').optional().isFloat({ min: 0, max: 100 }),
+    body('tier').isInt({ min: 1, max: 10 }),
+    body('minReferrals').optional().isInt({ min: 0 }),
+    body('minRevenue').optional().isFloat({ min: 0 }),
+    body('maxPayoutPerMonth').optional().isFloat({ min: 0 }),
+    body('payoutThreshold').optional().isFloat({ min: 0 }),
+    body('customTracking').optional().isBoolean(),
+    body('dedicatedSupport').optional().isBoolean(),
+    body('marketingMaterials').optional().isBoolean(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const plan = await affiliateService.adminCreatePlan(req.body);
+
+      res.status(201).json({
+        success: true,
+        data: plan,
+        message: 'Affiliate plan created successfully',
+      });
+    } catch (error: any) {
+      logger.error('Create plan error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Failed to create plan',
+      });
+    }
+  }
+);
+
+/**
+ * PUT /affiliate/admin/plans/:planId
+ * Update affiliate plan (Admin only)
+ */
+router.put(
+  '/admin/plans/:planId',
+  authenticate,
+  authorize(['ADMIN']),
+  [
+    param('planId').isString(),
+    body('name').optional().isString().isLength({ min: 1, max: 100 }),
+    body('description').optional().isString(),
+    body('status').optional().isString().isIn(['ACTIVE', 'INACTIVE']),
+    body('commissionModel').optional().isString().isIn(['CPA', 'REVENUE_SHARE', 'HYBRID']),
+    body('cpaAmount').optional().isFloat({ min: 0 }),
+    body('revenueSharePercent').optional().isFloat({ min: 0, max: 100 }),
+    body('tier').optional().isInt({ min: 1, max: 10 }),
+    body('minReferrals').optional().isInt({ min: 0 }),
+    body('minRevenue').optional().isFloat({ min: 0 }),
+    body('maxPayoutPerMonth').optional().isFloat({ min: 0 }),
+    body('payoutThreshold').optional().isFloat({ min: 0 }),
+    body('customTracking').optional().isBoolean(),
+    body('dedicatedSupport').optional().isBoolean(),
+    body('marketingMaterials').optional().isBoolean(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const planId = req.params.planId;
+
+      const plan = await affiliateService.adminUpdatePlan(planId, req.body);
+
+      res.json({
+        success: true,
+        data: plan,
+        message: 'Affiliate plan updated successfully',
+      });
+    } catch (error: any) {
+      logger.error('Update plan error:', error);
+      res.status(error.statusCode || 400).json({
+        success: false,
+        error: error.message || 'Failed to update plan',
+      });
+    }
+  }
+);
+
+/**
+ * DELETE /affiliate/admin/plans/:planId
+ * Delete affiliate plan (Admin only)
+ */
+router.delete(
+  '/admin/plans/:planId',
+  authenticate,
+  authorize(['ADMIN']),
+  [param('planId').isString()],
+  validate,
+  async (req, res) => {
+    try {
+      const planId = req.params.planId;
+
+      await affiliateService.adminDeletePlan(planId);
+
+      res.json({
+        success: true,
+        message: 'Affiliate plan deleted successfully',
+      });
+    } catch (error: any) {
+      logger.error('Delete plan error:', error);
+      res.status(error.statusCode || 400).json({
+        success: false,
+        error: error.message || 'Failed to delete plan',
+      });
+    }
+  }
+);
+
+// ==================== ADMIN CONTEST ROUTES ====================
+
+/**
+ * GET /affiliate/admin/contests
+ * Get all contests (Admin only)
+ */
+router.get(
+  '/admin/contests',
+  authenticate,
+  authorize(['ADMIN', 'SUPPORT']),
+  async (req, res) => {
+    try {
+      const contests = await affiliateService.adminGetContests();
+
+      res.json({
+        success: true,
+        data: contests,
+      });
+    } catch (error: any) {
+      logger.error('Get contests error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to fetch contests',
+      });
+    }
+  }
+);
+
+/**
+ * POST /affiliate/admin/contests
+ * Create contest (Admin only)
+ */
+router.post(
+  '/admin/contests',
+  authenticate,
+  authorize(['ADMIN']),
+  [
+    body('name').isString().isLength({ min: 1, max: 200 }),
+    body('description').optional().isString(),
+    body('status').optional().isString().isIn(['UPCOMING', 'ACTIVE', 'COMPLETED', 'CANCELLED']),
+    body('startDate').isString(),
+    body('endDate').isString(),
+    body('metricType').isString().isIn(['REVENUE', 'COMMISSIONS', 'REFERRALS']),
+    body('prizes').isObject(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const contest = await affiliateService.adminCreateContest(req.body);
+
+      res.status(201).json({
+        success: true,
+        data: contest,
+        message: 'Contest created successfully',
+      });
+    } catch (error: any) {
+      logger.error('Create contest error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Failed to create contest',
+      });
+    }
+  }
+);
+
+/**
+ * PUT /affiliate/admin/contests/:contestId
+ * Update contest (Admin only)
+ */
+router.put(
+  '/admin/contests/:contestId',
+  authenticate,
+  authorize(['ADMIN']),
+  [
+    param('contestId').isString(),
+    body('name').optional().isString().isLength({ min: 1, max: 200 }),
+    body('description').optional().isString(),
+    body('status').optional().isString().isIn(['UPCOMING', 'ACTIVE', 'COMPLETED', 'CANCELLED']),
+    body('startDate').optional().isString(),
+    body('endDate').optional().isString(),
+    body('metricType').optional().isString().isIn(['REVENUE', 'COMMISSIONS', 'REFERRALS']),
+    body('prizes').optional().isObject(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const contestId = req.params.contestId;
+
+      const contest = await affiliateService.adminUpdateContest(contestId, req.body);
+
+      res.json({
+        success: true,
+        data: contest,
+        message: 'Contest updated successfully',
+      });
+    } catch (error: any) {
+      logger.error('Update contest error:', error);
+      res.status(error.statusCode || 400).json({
+        success: false,
+        error: error.message || 'Failed to update contest',
       });
     }
   }

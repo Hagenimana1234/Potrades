@@ -580,9 +580,13 @@ model Affiliate {
 
   // Relations
   commissions           Commission[]
+  payouts               AffiliatePayout[]
+  planId                String?
+  plan                  AffiliatePlan?   @relation(fields: [planId], references: [id])
 
   @@index([status])
   @@index([userId])
+  @@index([planId])
 }
 
 enum CommissionStatus {
@@ -626,6 +630,152 @@ model Commission {
   @@index([referredUserId])
   @@index([status])
   @@index([createdAt])
+}
+
+enum AffiliatePlanStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model AffiliatePlan {
+  id                    String              @id @default(cuid())
+  name                  String
+  description           String?
+  status                AffiliatePlanStatus @default(ACTIVE)
+
+  // Commission Structure
+  commissionModel       CommissionModel     @default(REVENUE_SHARE)
+  cpaAmount             Decimal             @default(0) @db.Decimal(20, 8)
+  revenueSharePercent   Decimal             @default(0) @db.Decimal(5, 2)
+  tier                  Int                 @default(1)
+
+  // Requirements
+  minReferrals          Int?                // Minimum referrals to qualify
+  minRevenue            Decimal?            @db.Decimal(20, 8) // Minimum revenue generated
+
+  // Limits
+  maxPayoutPerMonth     Decimal?            @db.Decimal(20, 8)
+  payoutThreshold       Decimal             @default(100) @db.Decimal(20, 8) // Min amount to request payout
+
+  // Features
+  customTracking        Boolean             @default(false)
+  dedicatedSupport      Boolean             @default(false)
+  marketingMaterials    Boolean             @default(false)
+
+  // Display
+  displayOrder          Int                 @default(0)
+  badge                 String?             // Badge icon/emoji
+  color                 String?             // Brand color
+
+  // Relations
+  affiliates            Affiliate[]
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([status])
+  @@index([displayOrder])
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum PayoutMethod {
+  BANK_TRANSFER
+  CRYPTO_BTC
+  CRYPTO_ETH
+  CRYPTO_USDT
+  PAYPAL
+  WALLET_CREDIT
+  OTHER
+}
+
+model AffiliatePayout {
+  id                String        @id @default(cuid())
+  affiliateId       String
+  affiliate         Affiliate     @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  // Amount
+  amount            Decimal       @db.Decimal(20, 8)
+  currency          String        @default("USD")
+
+  // Method
+  method            PayoutMethod
+  destination       Json          // Bank details, crypto address, etc.
+
+  // Status
+  status            PayoutStatus  @default(PENDING)
+  requestedAt       DateTime      @default(now())
+  processedAt       DateTime?
+  completedAt       DateTime?
+
+  // Processing
+  processedBy       String?       // Admin user ID
+  txHash            String?       // Transaction hash for crypto
+  paymentRef        String?       // Reference number
+  rejectionReason   String?
+
+  // Metadata
+  commissionIds     String[]      // List of commission IDs included
+  notes             String?
+  metadata          Json?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([affiliateId])
+  @@index([status])
+  @@index([requestedAt])
+}
+
+enum ContestStatus {
+  UPCOMING
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+model AffiliateContest {
+  id                String        @id @default(cuid())
+  name              String
+  description       String?
+  status            ContestStatus @default(UPCOMING)
+
+  // Timing
+  startDate         DateTime
+  endDate           DateTime
+
+  // Metrics
+  metricType        String        @default("REVENUE") // REVENUE, REFERRALS, COMMISSIONS
+
+  // Prizes
+  prizes            Json          // Array of prizes: [{rank: 1, prize: "$1000", description: "..."}, ...]
+  winnerCount       Int           @default(3)
+
+  // Rules
+  minQualification  Decimal?      @db.Decimal(20, 8) // Min revenue/referrals to qualify
+  eligiblePlans     String[]      @default([]) // Empty = all plans eligible
+
+  // Results
+  leaderboard       Json?         // Cached leaderboard data
+  winners           Json?         // Final winners
+
+  // Display
+  bannerImage       String?
+  featured          Boolean       @default(false)
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
 }
 
 // ==================== SYSTEM & ADMIN ====================

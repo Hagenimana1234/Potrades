@@ -565,6 +565,467 @@ export class AffiliateService {
       referrals: user.referrals,
     };
   }
+
+  /**
+   * Get performance analytics for affiliate
+   */
+  async getPerformanceAnalytics(affiliateId: string, days: number = 30) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Get commissions over time
+    const commissions = await prisma.commission.findMany({
+      where: {
+        affiliateId,
+        createdAt: { gte: startDate },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Group by day
+    const dailyData: Record<string, { revenue: number; commissions: number; count: number }> = {};
+
+    commissions.forEach((commission) => {
+      const date = commission.createdAt.toISOString().split('T')[0];
+      if (!dailyData[date]) {
+        dailyData[date] = { revenue: 0, commissions: 0, count: 0 };
+      }
+      dailyData[date].revenue += commission.baseAmount?.toNumber() || 0;
+      dailyData[date].commissions += commission.amount.toNumber();
+      dailyData[date].count += 1;
+    });
+
+    // Get top performing referrals
+    const topReferrals = await prisma.$queryRaw<any[]>`
+      SELECT
+        u.id,
+        u.email,
+        u."firstName",
+        u."lastName",
+        COUNT(DISTINCT t.id) as "tradeCount",
+        SUM(CASE WHEN t.outcome = 'WIN' THEN 0 ELSE t.amount END) as "platformProfit",
+        SUM(c.amount) as "totalCommissions"
+      FROM "Commission" c
+      JOIN "User" u ON c."referredUserId" = u.id
+      LEFT JOIN "Trade" t ON t."userId" = u.id
+      WHERE c."affiliateId" = ${affiliateId}
+      GROUP BY u.id, u.email, u."firstName", u."lastName"
+      ORDER BY "totalCommissions" DESC
+      LIMIT 10
+    `;
+
+    // Get conversion funnel
+    const affiliate = await prisma.affiliate.findUnique({
+      where: { id: affiliateId },
+      include: {
+        user: {
+          select: {
+            referrals: {
+              select: {
+                id: true,
+                status: true,
+                deposits: {
+                  where: { status: 'COMPLETED' },
+                  select: { amount: true },
+                },
+                trades: {
+                  select: { id: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const referrals = affiliate?.user.referrals || [];
+    const totalReferrals = referrals.length;
+    const deposited = referrals.filter((r) => r.deposits.length > 0).length;
+    const traded = referrals.filter((r) => r.trades.length > 0).length;
+
+    return {
+      dailyData: Object.entries(dailyData).map(([date, data]) => ({
+        date,
+        ...data,
+      })),
+      topReferrals,
+      conversionFunnel: {
+        totalReferrals,
+        deposited,
+        depositRate: totalReferrals > 0 ? (deposited / totalReferrals) * 100 : 0,
+        traded,
+        tradeRate: deposited > 0 ? (traded / deposited) * 100 : 0,
+      },
+    };
+  }
+
+  /**
+   * Request payout
+   */
+  async requestPayout(data: {
+    affiliateId: string;
+    amount: number;
+    method: string;
+    destination: any;
+  }) {
+    const affiliate = await prisma.affiliate.findUnique({
+      where: { id: data.affiliateId },
+      include: { plan: true },
+    });
+
+    if (!affiliate) {
+      throw new NotFoundError('Affiliate not found');
+    }
+
+    // Check if enough balance
+    if (new Decimal(affiliate.pendingCommission).lessThan(data.amount)) {
+      throw new ValidationError('Insufficient pending commission balance');
+    }
+
+    // Check minimum payout threshold
+    const threshold = affiliate.plan?.payoutThreshold || new Decimal(100);
+    if (new Decimal(data.amount).lessThan(threshold)) {
+      throw new ValidationError(`Minimum payout amount is ${threshold}`);
+    }
+
+    // Get commissions to include (APPROVED status)
+    const commissions = await prisma.commission.findMany({
+      where: {
+        affiliateId: data.affiliateId,
+        status: CommissionStatus.APPROVED,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Calculate how many commissions fit in the payout amount
+    let remaining = new Decimal(data.amount);
+    const includedCommissions: string[] = [];
+
+    for (const commission of commissions) {
+      if (remaining.greaterThanOrEqualTo(commission.amount)) {
+        includedCommissions.push(commission.id);
+        remaining = remaining.sub(commission.amount);
+      }
+      if (remaining.isZero()) break;
+    }
+
+    const payout = await prisma.affiliatePayout.create({
+      data: {
+        affiliateId: data.affiliateId,
+        amount: data.amount,
+        method: data.method as any,
+        destination: data.destination,
+        commissionIds: includedCommissions,
+      },
+    });
+
+    logger.info(`Payout requested: ${payout.id} for affiliate ${data.affiliateId} - Amount: ${data.amount}`);
+
+    return payout;
+  }
+
+  /**
+   * Get affiliate payouts
+   */
+  async getAffiliatePayouts(affiliateId: string, limit: number = 50) {
+    return prisma.affiliatePayout.findMany({
+      where: { affiliateId },
+      orderBy: { requestedAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Admin: Process payout
+   */
+  async processPayout(
+    payoutId: string,
+    adminId: string,
+    data: {
+      status: 'COMPLETED' | 'REJECTED';
+      txHash?: string;
+      paymentRef?: string;
+      rejectionReason?: string;
+    }
+  ) {
+    const payout = await prisma.affiliatePayout.findUnique({
+      where: { id: payoutId },
+    });
+
+    if (!payout) {
+      throw new NotFoundError('Payout not found');
+    }
+
+    if (payout.status !== 'PENDING' && payout.status !== 'PROCESSING') {
+      throw new ValidationError('Payout is not pending');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Update payout status
+      await tx.affiliatePayout.update({
+        where: { id: payoutId },
+        data: {
+          status: data.status === 'COMPLETED' ? 'COMPLETED' : 'REJECTED',
+          processedBy: adminId,
+          processedAt: new Date(),
+          completedAt: data.status === 'COMPLETED' ? new Date() : undefined,
+          txHash: data.txHash,
+          paymentRef: data.paymentRef,
+          rejectionReason: data.rejectionReason,
+        },
+      });
+
+      if (data.status === 'COMPLETED') {
+        // Mark commissions as PAID
+        await tx.commission.updateMany({
+          where: {
+            id: { in: payout.commissionIds },
+          },
+          data: {
+            status: CommissionStatus.PAID,
+            paidAt: new Date(),
+            paymentMethod: payout.method,
+            paymentRef: data.paymentRef,
+          },
+        });
+
+        // Update affiliate stats
+        await tx.affiliate.update({
+          where: { id: payout.affiliateId },
+          data: {
+            pendingCommission: { decrement: payout.amount.toNumber() },
+            paidCommission: { increment: payout.amount.toNumber() },
+          },
+        });
+      }
+    });
+
+    logger.info(`Payout ${data.status} by admin ${adminId}: ${payoutId}`);
+
+    return payout;
+  }
+
+  /**
+   * Admin: Get pending payouts
+   */
+  async adminGetPendingPayouts(limit: number = 100) {
+    return prisma.affiliatePayout.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        affiliate: {
+          include: {
+            user: {
+              select: {
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { requestedAt: 'asc' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Get active contests
+   */
+  async getActiveContests() {
+    const now = new Date();
+
+    return prisma.affiliateContest.findMany({
+      where: {
+        status: { in: ['UPCOMING', 'ACTIVE'] },
+        endDate: { gte: now },
+      },
+      orderBy: [{ featured: 'desc' }, { startDate: 'asc' }],
+    });
+  }
+
+  /**
+   * Get contest leaderboard
+   */
+  async getContestLeaderboard(contestId: string) {
+    const contest = await prisma.affiliateContest.findUnique({
+      where: { id: contestId },
+    });
+
+    if (!contest) {
+      throw new NotFoundError('Contest not found');
+    }
+
+    // Calculate leaderboard based on metricType
+    let query = ``;
+
+    if (contest.metricType === 'REVENUE') {
+      query = `
+        SELECT
+          a.id as "affiliateId",
+          u.email,
+          u."firstName",
+          u."lastName",
+          SUM(c."baseAmount") as score
+        FROM "Affiliate" a
+        JOIN "User" u ON a."userId" = u.id
+        JOIN "Commission" c ON c."affiliateId" = a.id
+        WHERE c."createdAt" >= $1 AND c."createdAt" <= $2
+          AND a.status = 'ACTIVE'
+        GROUP BY a.id, u.email, u."firstName", u."lastName"
+        ORDER BY score DESC
+        LIMIT 100
+      `;
+    } else if (contest.metricType === 'COMMISSIONS') {
+      query = `
+        SELECT
+          a.id as "affiliateId",
+          u.email,
+          u."firstName",
+          u."lastName",
+          SUM(c.amount) as score
+        FROM "Affiliate" a
+        JOIN "User" u ON a."userId" = u.id
+        JOIN "Commission" c ON c."affiliateId" = a.id
+        WHERE c."createdAt" >= $1 AND c."createdAt" <= $2
+          AND a.status = 'ACTIVE'
+        GROUP BY a.id, u.email, u."firstName", u."lastName"
+        ORDER BY score DESC
+        LIMIT 100
+      `;
+    } else {
+      // REFERRALS
+      query = `
+        SELECT
+          a.id as "affiliateId",
+          u.email,
+          u."firstName",
+          u."lastName",
+          COUNT(DISTINCT r.id) as score
+        FROM "Affiliate" a
+        JOIN "User" u ON a."userId" = u.id
+        JOIN "User" r ON r."referredById" = u.id
+        WHERE r."createdAt" >= $1 AND r."createdAt" <= $2
+          AND a.status = 'ACTIVE'
+        GROUP BY a.id, u.email, u."firstName", u."lastName"
+        ORDER BY score DESC
+        LIMIT 100
+      `;
+    }
+
+    const leaderboard = await prisma.$queryRawUnsafe<any[]>(query, contest.startDate, contest.endDate);
+
+    // Add ranks
+    const rankedLeaderboard = leaderboard.map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+      prize: contest.prizes ? (contest.prizes as any[])[index] : null,
+    }));
+
+    return {
+      contest,
+      leaderboard: rankedLeaderboard,
+    };
+  }
+
+  /**
+   * Admin: Get all affiliate plans
+   */
+  async adminGetPlans() {
+    return prisma.affiliatePlan.findMany({
+      orderBy: { displayOrder: 'asc' },
+      include: {
+        _count: {
+          select: { affiliates: true },
+        },
+      },
+    });
+  }
+
+  /**
+   * Admin: Create affiliate plan
+   */
+  async adminCreatePlan(data: any) {
+    const plan = await prisma.affiliatePlan.create({
+      data,
+    });
+
+    logger.info(`Affiliate plan created: ${plan.id} - ${plan.name}`);
+
+    return plan;
+  }
+
+  /**
+   * Admin: Update affiliate plan
+   */
+  async adminUpdatePlan(planId: string, data: any) {
+    const plan = await prisma.affiliatePlan.update({
+      where: { id: planId },
+      data,
+    });
+
+    logger.info(`Affiliate plan updated: ${planId}`);
+
+    return plan;
+  }
+
+  /**
+   * Admin: Delete affiliate plan
+   */
+  async adminDeletePlan(planId: string) {
+    // Check if any affiliates are using this plan
+    const count = await prisma.affiliate.count({
+      where: { planId },
+    });
+
+    if (count > 0) {
+      throw new ValidationError(`Cannot delete plan with ${count} active affiliates`);
+    }
+
+    await prisma.affiliatePlan.delete({
+      where: { id: planId },
+    });
+
+    logger.info(`Affiliate plan deleted: ${planId}`);
+
+    return { success: true };
+  }
+
+  /**
+   * Admin: Create contest
+   */
+  async adminCreateContest(data: any) {
+    const contest = await prisma.affiliateContest.create({
+      data,
+    });
+
+    logger.info(`Affiliate contest created: ${contest.id} - ${contest.name}`);
+
+    return contest;
+  }
+
+  /**
+   * Admin: Update contest
+   */
+  async adminUpdateContest(contestId: string, data: any) {
+    const contest = await prisma.affiliateContest.update({
+      where: { id: contestId },
+      data,
+    });
+
+    logger.info(`Affiliate contest updated: ${contestId}`);
+
+    return contest;
+  }
+
+  /**
+   * Admin: Get all contests
+   */
+  async adminGetContests() {
+    return prisma.affiliateContest.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }
 
 export default new AffiliateService();

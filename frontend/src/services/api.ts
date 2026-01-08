@@ -130,6 +130,17 @@ export const affiliateAPI = {
   getReferrals: () => api.get('/affiliate/referrals'),
   getReferralStats: () => api.get('/referral/stats'),
 
+  // Analytics
+  getAnalytics: (days?: number) => api.get('/affiliate/analytics', { params: { days } }),
+
+  // Payouts
+  requestPayout: (data: any) => api.post('/affiliate/payouts/request', data),
+  getPayouts: () => api.get('/affiliate/payouts'),
+
+  // Contests
+  getContests: () => api.get('/affiliate/contests'),
+  getContestLeaderboard: (contestId: string) => api.get(`/affiliate/contests/${contestId}/leaderboard`),
+
   // Admin endpoints
   adminGetAll: (params?: any) => api.get('/affiliate/admin/all', { params }),
   adminApprove: (affiliateId: string, data?: any) =>
@@ -142,6 +153,23 @@ export const affiliateAPI = {
   adminPayCommission: (commissionId: string, data?: any) =>
     api.post(`/affiliate/admin/commissions/${commissionId}/pay`, data),
   adminGetDetails: (affiliateId: string) => api.get(`/affiliate/admin/${affiliateId}/details`),
+
+  // Admin - Payouts
+  adminGetPendingPayouts: () => api.get('/affiliate/admin/payouts/pending'),
+  adminProcessPayout: (payoutId: string, data: any) =>
+    api.post(`/affiliate/admin/payouts/${payoutId}/process`, data),
+
+  // Admin - Plans
+  adminGetPlans: () => api.get('/affiliate/admin/plans'),
+  adminCreatePlan: (data: any) => api.post('/affiliate/admin/plans', data),
+  adminUpdatePlan: (planId: string, data: any) => api.put(`/affiliate/admin/plans/${planId}`, data),
+  adminDeletePlan: (planId: string) => api.delete(`/affiliate/admin/plans/${planId}`),
+
+  // Admin - Contests
+  adminGetContests: () => api.get('/affiliate/admin/contests'),
+  adminCreateContest: (data: any) => api.post('/affiliate/admin/contests', data),
+  adminUpdateContest: (contestId: string, data: any) =>
+    api.put(`/affiliate/admin/contests/${contestId}`, data),
 };
 
 // Profile API
