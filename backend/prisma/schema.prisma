@@ -90,6 +90,7 @@ model User {
   deposits          Deposit[]
   savingsDeposits   SavingsDeposit[]
   supportTickets    SupportTicket[]
+  favoriteAssets    FavoriteAsset[]
 
   @@index([email])
   @@index([referralCode])
@@ -353,10 +354,24 @@ model Asset {
   trades          Trade[]
   signals         Signal[]
   otcConfig       OTCPricingConfig?
+  favorites       FavoriteAsset[]
 
   @@index([symbol])
   @@index([type])
   @@index([isActive])
+}
+
+model FavoriteAsset {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, assetId])
+  @@index([userId])
+  @@index([assetId])
 }
 
 model Price {

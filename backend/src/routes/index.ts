@@ -8,11 +8,15 @@ import healthRoutes from './health.routes';
 import financeRoutes from './finance.routes';
 import affiliateRoutes from './affiliate.routes';
 import profileRoutes from './profile.routes';
+import marketRoutes from './market.routes';
 
 const router = Router();
 
 // Health check routes (for load balancers)
 router.use('/', healthRoutes);
+
+// Market routes (assets, favorites, market data)
+router.use('/market', marketRoutes);
 
 // Finance routes (deposits, withdrawals, transactions)
 router.use('/finance', financeRoutes);

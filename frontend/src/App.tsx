@@ -7,6 +7,7 @@ import { FinancePage } from './pages/FinancePage';
 import { AdminWalletsPage } from './pages/AdminWalletsPage';
 import { AffiliatePage } from './pages/AffiliatePage';
 import { ProfilePage } from './pages/ProfilePage';
+import { MarketPage } from './pages/MarketPage';
 import { useAuthStore } from './store/authStore';
 
 const queryClient = new QueryClient({
@@ -78,6 +79,14 @@ function App() {
             element={
               <PrivateRoute>
                 <ProfilePage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/market"
+            element={
+              <PrivateRoute>
+                <MarketPage />
               </PrivateRoute>
             }
           />

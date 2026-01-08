@@ -111,6 +111,19 @@ export const financeAPI = {
   deactivatePlatformWallet: (network: string) => api.delete(`/finance/admin/wallets/${network}`),
 };
 
+// Market API
+export const marketAPI = {
+  // Assets
+  getAssets: (params?: any) => api.get('/market/assets', { params }),
+  getAssetDetails: (assetId: string) => api.get(`/market/assets/${assetId}`),
+  getMarketStats: () => api.get('/market/stats'),
+
+  // Favorites
+  getFavorites: () => api.get('/market/favorites'),
+  addFavorite: (assetId: string) => api.post(`/market/favorites/${assetId}`),
+  removeFavorite: (assetId: string) => api.delete(`/market/favorites/${assetId}`),
+};
+
 // Copy Trading API
 export const copyTradingAPI = {
   getTraders: (params?: any) => api.get('/copy-trading/traders', { params }),
