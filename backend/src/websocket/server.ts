@@ -85,11 +85,18 @@ export class WebSocketServer {
   private setupEventHandlers() {
     this.io.on('connection', (socket) => {
       const userId = socket.data.user?.userId;
+      const userRole = socket.data.user?.role;
       logger.info(`WebSocket connected: ${socket.id}${userId ? ` (User: ${userId})` : ' (Anonymous)'}`);
 
       // Join user's private room if authenticated
       if (userId) {
         socket.join(`user:${userId}`);
+
+        // Join admin room if admin or support
+        if (userRole === 'ADMIN' || userRole === 'SUPPORT') {
+          socket.join('admin');
+          logger.debug(`User ${userId} joined admin room`);
+        }
       }
 
       // Subscribe to asset price updates
@@ -202,29 +209,171 @@ export class WebSocketServer {
 
   // Public methods for broadcasting events
 
+  /**
+   * Broadcast trade opened event
+   */
+  public broadcastTradeOpened(userId: string, trade: any) {
+    this.io.to(`trades:${userId}`).to(`user:${userId}`).emit('trade:opened', {
+      tradeId: trade.id,
+      assetId: trade.assetId,
+      symbol: trade.asset?.symbol,
+      direction: trade.direction,
+      amount: trade.amount,
+      entryPrice: trade.entryPrice,
+      expiryTime: trade.expiryTime,
+      timestamp: new Date(),
+    });
+
+    // Notify admins
+    this.io.to('admin').emit('trade:new', {
+      userId,
+      tradeId: trade.id,
+      assetId: trade.assetId,
+      symbol: trade.asset?.symbol,
+      direction: trade.direction,
+      amount: trade.amount,
+      timestamp: new Date(),
+    });
+
+    logger.debug(`Broadcast trade opened: ${trade.id} for user ${userId}`);
+  }
+
+  /**
+   * Broadcast trade closed event
+   */
+  public broadcastTradeClosed(userId: string, trade: any) {
+    const isWin = trade.profit && trade.profit.toNumber() > 0;
+
+    this.io.to(`trades:${userId}`).to(`user:${userId}`).emit('trade:closed', {
+      tradeId: trade.id,
+      assetId: trade.assetId,
+      symbol: trade.asset?.symbol,
+      direction: trade.direction,
+      amount: trade.amount,
+      entryPrice: trade.entryPrice,
+      exitPrice: trade.exitPrice,
+      profit: trade.profit,
+      isWin,
+      timestamp: new Date(),
+    });
+
+    // Notify admins
+    this.io.to('admin').emit('trade:settled', {
+      userId,
+      tradeId: trade.id,
+      profit: trade.profit,
+      isWin,
+      timestamp: new Date(),
+    });
+
+    logger.debug(`Broadcast trade closed: ${trade.id} for user ${userId} (${isWin ? 'WIN' : 'LOSS'})`);
+  }
+
+  /**
+   * Broadcast generic trade update (for backwards compatibility)
+   */
   public broadcastTradeUpdate(userId: string, trade: any) {
     this.io.to(`trades:${userId}`).to(`user:${userId}`).emit('trade:update', trade);
   }
 
+  /**
+   * Broadcast wallet update
+   */
   public broadcastWalletUpdate(userId: string, wallet: any) {
     this.io.to(`wallet:${userId}`).to(`user:${userId}`).emit('wallet:update', wallet);
   }
 
+  /**
+   * Broadcast balance update (real-time balance changes)
+   */
+  public broadcastBalanceUpdate(userId: string, walletType: string, balance: number) {
+    this.io.to(`wallet:${userId}`).to(`user:${userId}`).emit('balance:update', {
+      walletType,
+      balance,
+      timestamp: new Date(),
+    });
+
+    logger.debug(`Sent balance update to user ${userId}: ${walletType} = ${balance}`);
+  }
+
+  /**
+   * Send notification to user
+   */
   public broadcastNotification(userId: string, notification: any) {
-    this.io.to(`user:${userId}`).emit('notification', notification);
+    this.io.to(`user:${userId}`).emit('notification', {
+      id: notification.id,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      data: notification.data,
+      timestamp: notification.createdAt || new Date(),
+    });
+
+    logger.debug(`Sent notification to user ${userId}: ${notification.type}`);
   }
 
-  public broadcastSystemAnnouncement(message: string) {
-    this.io.emit('system:announcement', { message, timestamp: new Date() });
+  /**
+   * Broadcast system announcement to all users
+   */
+  public broadcastSystemAnnouncement(message: string, priority: string = 'NORMAL') {
+    this.io.emit('system:announcement', {
+      message,
+      priority,
+      timestamp: new Date()
+    });
+
+    logger.info(`Broadcast system announcement: ${message}`);
   }
 
+  /**
+   * Broadcast to admin users only
+   */
+  public broadcastToAdmins(event: string, data: any) {
+    this.io.to('admin').emit(event, {
+      ...data,
+      timestamp: new Date(),
+    });
+
+    logger.debug(`Broadcast to admins: ${event}`);
+  }
+
+  /**
+   * Broadcast platform statistics to admins
+   */
+  public broadcastPlatformStats(stats: any) {
+    this.io.to('admin').emit('platform:stats', {
+      ...stats,
+      timestamp: new Date(),
+    });
+  }
+
+  /**
+   * Get total connected users
+   */
   public getConnectedUsers(): number {
     return this.io.sockets.sockets.size;
   }
 
+  /**
+   * Get user's active connections
+   */
   public getUserConnections(userId: string): number {
     const room = this.io.sockets.adapter.rooms.get(`user:${userId}`);
     return room ? room.size : 0;
+  }
+
+  /**
+   * Check if user is connected
+   */
+  public isUserConnected(userId: string): boolean {
+    return this.getUserConnections(userId) > 0;
+  }
+
+  /**
+   * Get Socket.IO instance
+   */
+  public getIO(): SocketIOServer {
+    return this.io;
   }
 }
 
