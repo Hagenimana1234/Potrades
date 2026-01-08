@@ -68,6 +68,24 @@ export const tradingAPI = {
   getPriceHistory: (assetId: string, params?: any) => api.get(`/assets/${assetId}/history`, { params }),
 };
 
+// Trades API (new dedicated module)
+export const tradesAPI = {
+  // Trade operations
+  placeTrade: (data: any) => api.post('/trades', data),
+  closeTrade: (tradeId: string) => api.post(`/trades/${tradeId}/close`),
+  cancelTrade: (tradeId: string) => api.delete(`/trades/${tradeId}`),
+
+  // Trade queries
+  getOpenTrades: () => api.get('/trades/open'),
+  getTradeHistory: (params?: any) => api.get('/trades', { params }),
+  getTradeStats: (params?: any) => api.get('/trades/stats', { params }),
+
+  // Risk management
+  getRiskLimits: () => api.get('/trades/risk/limits'),
+  updateRiskLimits: (data: any) => api.put('/trades/risk/limits', data),
+  removeRiskLimits: () => api.delete('/trades/risk/limits'),
+};
+
 // Wallet API
 export const walletAPI = {
   getWallets: () => api.get('/wallet'),

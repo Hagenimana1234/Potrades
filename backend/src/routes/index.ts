@@ -10,6 +10,7 @@ import affiliateRoutes from './affiliate.routes';
 import profileRoutes from './profile.routes';
 import marketRoutes from './market.routes';
 import savingsRoutes from './savings.routes';
+import tradesRoutes from './trades.routes';
 
 const router = Router();
 
@@ -21,6 +22,9 @@ router.use('/market', marketRoutes);
 
 // Savings routes (My Safe - savings plans, deposits, withdrawals)
 router.use('/savings', savingsRoutes);
+
+// Trades routes (place, close, history, risk settings)
+router.use('/trades', tradesRoutes);
 
 // Finance routes (deposits, withdrawals, transactions)
 router.use('/finance', financeRoutes);
@@ -46,14 +50,8 @@ router.post('/auth/2fa/setup', authenticate, authController.setup2FA);
 router.post('/auth/2fa/enable', authenticate, authController.enable2FA);
 router.post('/auth/2fa/disable', authenticate, authController.disable2FA);
 
-// ==================== TRADING ROUTES ====================
-router.post('/trades', authenticate, tradeLimiter, tradingController.placeTrade);
-router.get('/trades', authenticate, tradingController.getTrades);
-router.get('/trades/stats', authenticate, tradingController.getTradeStats);
-router.get('/trades/open', authenticate, tradingController.getOpenTrades);
-router.delete('/trades/:tradeId', authenticate, tradingController.cancelTrade);
-
-// Assets & Market Data
+// ==================== LEGACY ASSET ROUTES ====================
+// (Kept for backward compatibility - prefer /market routes)
 router.get('/assets', tradingController.getAssets);
 router.get('/assets/:assetId/price', tradingController.getCurrentPrice);
 router.get('/assets/:assetId/history', tradingController.getPriceHistory);

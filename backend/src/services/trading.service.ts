@@ -68,6 +68,9 @@ export class TradingService {
       );
     }
 
+    // Validate against risk limits
+    await this.validateTradeAgainstRiskLimits(userId, amount);
+
     // Get wallet
     const wallet = await walletService.getWallet(userId, walletType);
 
@@ -312,6 +315,181 @@ export class TradingService {
     });
 
     logger.info(`Trade cancelled: ${tradeId}`);
+  }
+
+  /**
+   * Manually close an open trade before expiry
+   */
+  async closeTrade(tradeId: string, userId: string) {
+    const trade = await prisma.trade.findUnique({
+      where: { id: tradeId },
+      include: {
+        asset: true,
+        wallet: true,
+      },
+    });
+
+    if (!trade) {
+      throw new NotFoundError('Trade not found');
+    }
+
+    if (trade.userId !== userId) {
+      throw new ValidationError('Unauthorized to close this trade');
+    }
+
+    if (trade.status !== TradeStatus.OPEN) {
+      throw new TradingError('Can only close open trades');
+    }
+
+    // Settle the trade immediately
+    const result = await this.settleTrade(tradeId);
+
+    logger.info(`Trade manually closed: ${tradeId} | Result: ${result.status}`);
+
+    return result;
+  }
+
+  /**
+   * Get or create user risk limits
+   */
+  async getUserRiskLimits(userId: string) {
+    let riskLimit = await prisma.riskLimit.findUnique({
+      where: { userId },
+    });
+
+    // If no custom limits, return defaults
+    if (!riskLimit) {
+      return {
+        userId,
+        maxTradeAmount: null, // null means no limit
+        maxDailyLoss: null,
+        maxOpenTrades: null,
+        maxDailyTrades: null,
+        cooldownSeconds: null,
+        isActive: true,
+      };
+    }
+
+    return riskLimit;
+  }
+
+  /**
+   * Update user risk limits
+   */
+  async updateUserRiskLimits(userId: string, limits: {
+    maxTradeAmount?: number | null;
+    maxDailyLoss?: number | null;
+    maxOpenTrades?: number | null;
+    maxDailyTrades?: number | null;
+    cooldownSeconds?: number | null;
+  }) {
+    const existingLimit = await prisma.riskLimit.findUnique({
+      where: { userId },
+    });
+
+    if (existingLimit) {
+      return await prisma.riskLimit.update({
+        where: { userId },
+        data: {
+          maxTradeAmount: limits.maxTradeAmount,
+          maxDailyLoss: limits.maxDailyLoss,
+          maxOpenTrades: limits.maxOpenTrades,
+          maxDailyTrades: limits.maxDailyTrades,
+          cooldownSeconds: limits.cooldownSeconds,
+        },
+      });
+    } else {
+      return await prisma.riskLimit.create({
+        data: {
+          userId,
+          maxTradeAmount: limits.maxTradeAmount,
+          maxDailyLoss: limits.maxDailyLoss,
+          maxOpenTrades: limits.maxOpenTrades,
+          maxDailyTrades: limits.maxDailyTrades,
+          cooldownSeconds: limits.cooldownSeconds,
+          isActive: true,
+        },
+      });
+    }
+  }
+
+  /**
+   * Validate trade against risk limits
+   */
+  async validateTradeAgainstRiskLimits(userId: string, amount: number): Promise<boolean> {
+    const riskLimit = await prisma.riskLimit.findUnique({
+      where: { userId },
+    });
+
+    if (!riskLimit || !riskLimit.isActive) {
+      return true; // No limits
+    }
+
+    // Check max trade amount
+    if (riskLimit.maxTradeAmount && amount > riskLimit.maxTradeAmount.toNumber()) {
+      throw new ValidationError(
+        `Trade amount exceeds your risk limit of ${riskLimit.maxTradeAmount.toString()}`
+      );
+    }
+
+    // Check max open trades
+    if (riskLimit.maxOpenTrades) {
+      const openTradesCount = await prisma.trade.count({
+        where: {
+          userId,
+          status: TradeStatus.OPEN,
+        },
+      });
+
+      if (openTradesCount >= riskLimit.maxOpenTrades) {
+        throw new ValidationError(
+          `You have reached your maximum open trades limit of ${riskLimit.maxOpenTrades}`
+        );
+      }
+    }
+
+    // Check max daily trades
+    if (riskLimit.maxDailyTrades) {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const todayTradesCount = await prisma.trade.count({
+        where: {
+          userId,
+          createdAt: { gte: startOfDay },
+        },
+      });
+
+      if (todayTradesCount >= riskLimit.maxDailyTrades) {
+        throw new ValidationError(
+          `You have reached your maximum daily trades limit of ${riskLimit.maxDailyTrades}`
+        );
+      }
+    }
+
+    // Check max daily loss
+    if (riskLimit.maxDailyLoss) {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const todayLoss = await prisma.trade.aggregate({
+        where: {
+          userId,
+          createdAt: { gte: startOfDay },
+          status: { in: [TradeStatus.WON, TradeStatus.LOST] },
+        },
+        _sum: { profit: true },
+      });
+
+      const currentLoss = todayLoss._sum.profit?.toNumber() || 0;
+      if (currentLoss < 0 && Math.abs(currentLoss) >= riskLimit.maxDailyLoss.toNumber()) {
+        throw new ValidationError(
+          `You have reached your maximum daily loss limit of ${riskLimit.maxDailyLoss.toString()}`
+        );
+      }
+    }
+
+    return true;
   }
 
   /**
