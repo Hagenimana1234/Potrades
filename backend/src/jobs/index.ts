@@ -3,6 +3,7 @@ import redis from '../utils/redis';
 import tradingService from '../services/trading.service';
 import copyTradingService from '../services/copyTrading.service';
 import marketDataService from '../services/marketData.service';
+import { emailService } from '../services/email.service';
 import logger from '../utils/logger';
 
 const connection = {
@@ -128,10 +129,80 @@ const notificationWorker = new Worker(
     try {
       logger.debug(`Processing notification: ${type} for user ${userId}`);
 
+      // Get user email if needed
+      let user;
+      if (type === 'email') {
+        user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true, firstName: true, lastName: true },
+        });
+
+        if (!user) {
+          logger.warn(`User ${userId} not found, skipping email notification`);
+          return;
+        }
+      }
+
       switch (type) {
         case 'email':
-          // TODO: Send email notification
-          logger.info(`Email notification sent to user ${userId}`);
+          // Send email notification
+          const emailType = data.emailType;
+          const username = user?.firstName || 'User';
+          const userEmail = user?.email!;
+
+          switch (emailType) {
+            case 'welcome':
+              await emailService.sendWelcomeEmail(userEmail, username);
+              break;
+
+            case 'verification':
+              await emailService.sendVerificationEmail(userEmail, username, data.verificationToken);
+              break;
+
+            case 'password-reset':
+              await emailService.sendPasswordResetEmail(userEmail, username, data.resetToken);
+              break;
+
+            case 'trade-opened':
+              await emailService.sendTradeOpenedEmail(userEmail, {
+                username,
+                assetSymbol: data.assetSymbol,
+                direction: data.direction,
+                amount: data.amount,
+                entryPrice: data.entryPrice,
+              });
+              break;
+
+            case 'trade-closed':
+              await emailService.sendTradeClosedEmail(userEmail, {
+                username,
+                assetSymbol: data.assetSymbol,
+                direction: data.direction,
+                amount: data.amount,
+                entryPrice: data.entryPrice,
+                exitPrice: data.exitPrice,
+                profit: data.profit,
+                isWin: data.isWin,
+              });
+              break;
+
+            case 'deposit-confirmation':
+              await emailService.sendDepositConfirmationEmail(userEmail, username, data.amount, data.currency || 'USD');
+              break;
+
+            case 'withdrawal-confirmation':
+              await emailService.sendWithdrawalConfirmationEmail(userEmail, username, data.amount, data.currency || 'USD');
+              break;
+
+            case 'security-alert':
+              await emailService.sendSecurityAlertEmail(userEmail, username, data.action, data.details);
+              break;
+
+            default:
+              logger.warn(`Unknown email type: ${emailType}`);
+          }
+
+          logger.info(`Email notification (${emailType}) sent to user ${userId}`);
           break;
 
         case 'push':
@@ -140,11 +211,12 @@ const notificationWorker = new Worker(
           if (wsServer) {
             wsServer.broadcastNotification(userId, data);
           }
+          logger.debug(`Push notification sent to user ${userId}`);
           break;
 
         case 'sms':
-          // TODO: Send SMS notification
-          logger.info(`SMS notification sent to user ${userId}`);
+          // TODO: Integrate SMS service (Twilio, Africa's Talking, etc.)
+          logger.info(`SMS notification queued for user ${userId} (SMS service not yet implemented)`);
           break;
 
         default:
