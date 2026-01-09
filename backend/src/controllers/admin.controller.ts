@@ -6,6 +6,7 @@ import walletService from '../services/wallet.service';
 import marketDataService from '../services/marketData.service';
 import copyTradingService from '../services/copyTrading.service';
 import affiliateService from '../services/affiliate.service';
+import { priceOrchestrationService } from '../services/priceOrchestration.service';
 
 export class AdminController {
   // User Management
@@ -338,6 +339,222 @@ export class AdminController {
       ]);
 
       res.json({ success: true, data: { logs, total } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ==================== OTC PRICING CONFIGURATION (POL MANAGEMENT) ====================
+
+  /**
+   * Get all OTC pricing configurations
+   * Critical for monitoring and managing the Price Orchestration Layer
+   */
+  async getOTCPricingConfigs(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const configs = await priceOrchestrationService.getAllPricingConfigs();
+      res.json({ success: true, data: configs });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get OTC pricing config for specific asset
+   */
+  async getOTCPricingConfig(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { assetId } = req.params;
+
+      const config = await prisma.oTCPricingConfig.findUnique({
+        where: { assetId },
+        include: {
+          asset: {
+            select: {
+              symbol: true,
+              name: true,
+              type: true,
+            },
+          },
+        },
+      });
+
+      if (!config) {
+        return res.status(404).json({ success: false, message: 'Pricing config not found' });
+      }
+
+      res.json({ success: true, data: config });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Update OTC pricing config for asset
+   * CRITICAL: This controls spread, slippage, price adjustment for POL
+   */
+  async updateOTCPricingConfig(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { assetId } = req.params;
+      const { spreadPercent, slippagePercent, priceAdjustment, executionDelayMs, maxExposure } = req.body;
+      const adminId = req.user!.userId;
+
+      const config = await priceOrchestrationService.updatePricingConfig(assetId, {
+        spreadPercent,
+        slippagePercent,
+        priceAdjustment,
+        executionDelayMs,
+        maxExposure,
+      });
+
+      // Create audit log
+      await prisma.auditLog.create({
+        data: {
+          userId: adminId,
+          action: 'OTC_CONFIG_UPDATE',
+          entity: 'OTCPricingConfig',
+          entityId: config.id,
+          details: {
+            assetId,
+            spreadPercent,
+            slippagePercent,
+            priceAdjustment,
+            executionDelayMs,
+            maxExposure,
+          },
+        },
+      });
+
+      res.json({ success: true, data: config, message: 'Pricing config updated successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get platform exposure for risk monitoring
+   */
+  async getPlatformExposure(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { assetId } = req.query;
+
+      if (assetId) {
+        // Get exposure for specific asset
+        const exposure = await priceOrchestrationService.calculatePlatformExposure(assetId as string);
+
+        const asset = await prisma.asset.findUnique({
+          where: { id: assetId as string },
+          select: { symbol: true, name: true },
+        });
+
+        res.json({
+          success: true,
+          data: {
+            assetId,
+            symbol: asset?.symbol,
+            name: asset?.name,
+            exposure,
+            direction: exposure > 0 ? 'LONG' : exposure < 0 ? 'SHORT' : 'NEUTRAL',
+          },
+        });
+      } else {
+        // Get exposure for all active assets
+        const assets = await prisma.asset.findMany({
+          where: { isActive: true },
+          select: { id: true, symbol: true, name: true },
+        });
+
+        const exposures = await Promise.all(
+          assets.map(async (asset) => {
+            const exposure = await priceOrchestrationService.calculatePlatformExposure(asset.id);
+            return {
+              assetId: asset.id,
+              symbol: asset.symbol,
+              name: asset.name,
+              exposure,
+              direction: exposure > 0 ? 'LONG' : exposure < 0 ? 'SHORT' : 'NEUTRAL',
+            };
+          })
+        );
+
+        // Calculate total exposure
+        const totalExposure = exposures.reduce((sum, e) => sum + e.exposure, 0);
+
+        res.json({
+          success: true,
+          data: {
+            totalExposure,
+            assets: exposures.sort((a, b) => Math.abs(b.exposure) - Math.abs(a.exposure)),
+          },
+        });
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Clear POL cache (force refresh of pricing configs)
+   */
+  async clearPOLCache(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      priceOrchestrationService.clearCache();
+
+      await prisma.auditLog.create({
+        data: {
+          userId: req.user!.userId,
+          action: 'POL_CACHE_CLEAR',
+          entity: 'System',
+          entityId: 'pol-cache',
+          details: { timestamp: new Date() },
+        },
+      });
+
+      res.json({ success: true, message: 'POL cache cleared successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get synthetic price preview (test POL without saving)
+   */
+  async previewSyntheticPrice(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { assetId, seedPrice } = req.body;
+
+      if (!assetId || !seedPrice) {
+        return res.status(400).json({ success: false, message: 'assetId and seedPrice are required' });
+      }
+
+      const platformExposure = await priceOrchestrationService.calculatePlatformExposure(assetId);
+
+      const syntheticPrice = await priceOrchestrationService.generateSyntheticPrice({
+        assetId,
+        seedPrice: Number(seedPrice),
+        timestamp: new Date(),
+        platformExposure,
+      });
+
+      const config = await prisma.oTCPricingConfig.findUnique({
+        where: { assetId },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          seedPrice: Number(seedPrice),
+          syntheticPrice,
+          difference: syntheticPrice - Number(seedPrice),
+          differencePercent: ((syntheticPrice - Number(seedPrice)) / Number(seedPrice)) * 100,
+          platformExposure,
+          config: {
+            spreadPercent: config?.spreadPercent.toNumber(),
+            slippagePercent: config?.slippagePercent.toNumber(),
+            priceAdjustment: config?.priceAdjustment.toNumber(),
+          },
+        },
+      });
     } catch (error) {
       next(error);
     }

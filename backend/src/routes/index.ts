@@ -191,6 +191,13 @@ adminRouter.get('/trades', adminController.getAllTrades);
 adminRouter.get('/trades/exposure', adminController.getPlatformExposure);
 adminRouter.get('/stats', adminController.getPlatformStats);
 
+// OTC Pricing Configuration (POL Management)
+adminRouter.get('/otc-pricing', adminController.getOTCPricingConfigs);
+adminRouter.get('/otc-pricing/:assetId', adminController.getOTCPricingConfig);
+adminRouter.put('/otc-pricing/:assetId', adminController.updateOTCPricingConfig);
+adminRouter.post('/otc-pricing/clear-cache', adminController.clearPOLCache);
+adminRouter.post('/otc-pricing/preview', adminController.previewSyntheticPrice);
+
 // Asset Management
 adminRouter.put('/assets/:assetId', adminController.updateAsset);
 adminRouter.post('/assets', adminController.createAsset);
