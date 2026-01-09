@@ -190,12 +190,12 @@ const LandingPage = () => {
           <AssetCategory>
             <CategoryIcon>📈</CategoryIcon>
             <CategoryName>Stocks</CategoryName>
-            <CategoryCount>20+ stocks</CategoryName>
+            <CategoryCount>20+ stocks</CategoryCount>
           </AssetCategory>
           <AssetCategory>
             <CategoryIcon>🛢️</CategoryIcon>
             <CategoryName>Commodities</CategoryName>
-            <CategoryCount>15+ assets</CategoryName>
+            <CategoryCount>15+ assets</CategoryCount>
           </AssetCategory>
         </AssetCategories>
       </AssetsSection>
