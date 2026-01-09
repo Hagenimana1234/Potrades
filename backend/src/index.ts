@@ -8,14 +8,6 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { randomBytes } from 'crypto';
 import os from 'os';
-
-// Load environment variables
-dotenv.config();
-
-// Generate unique instance ID for clustering
-const INSTANCE_ID = process.env.INSTANCE_ID || `instance-${os.hostname()}-${randomBytes(4).toString('hex')}`;
-process.env.INSTANCE_ID = INSTANCE_ID;
-
 import logger from './utils/logger';
 import { connectDatabase } from './utils/database';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
@@ -25,6 +17,13 @@ import routes from './routes';
 import WebSocketServer from './websocket/server';
 import { initializeJobs } from './jobs';
 import marketDataService from './services/marketData.service';
+
+// Load environment variables
+dotenv.config();
+
+// Generate unique instance ID for clustering
+const INSTANCE_ID = process.env.INSTANCE_ID || `instance-${os.hostname()}-${randomBytes(4).toString('hex')}`;
+process.env.INSTANCE_ID = INSTANCE_ID;
 
 const PORT = process.env.PORT || 3000;
 const app = express();
