@@ -2,9 +2,8 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
-import settingsService from '../services/settings.service';
+import settingsController from '../controllers/settings.controller';
 import authController from '../controllers/auth.controller';
-import logger from '../utils/logger';
 
 const router = Router();
 
@@ -17,24 +16,7 @@ router.use(authenticate);
  * GET /settings
  * Get all user settings
  */
-router.get('/', async (req, res) => {
-  try {
-    const userId = req.user!.id;
-
-    const settings = await settingsService.getUserSettings(userId);
-
-    res.json({
-      success: true,
-      data: settings,
-    });
-  } catch (error: any) {
-    logger.error('Get settings error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch settings',
-    });
-  }
-});
+router.get('/', settingsController.getUserSettings);
 
 /**
  * PUT /settings
@@ -53,50 +35,14 @@ router.put(
     body('displayPreferences').optional().isObject(),
   ],
   validate,
-  async (req, res) => {
-    try {
-      const userId = req.user!.id;
-
-      const updatedSettings = await settingsService.updateUserSettings(userId, req.body);
-
-      res.json({
-        success: true,
-        data: updatedSettings,
-        message: 'Settings updated successfully',
-      });
-    } catch (error: any) {
-      logger.error('Update settings error:', error);
-      res.status(error.statusCode || 400).json({
-        success: false,
-        error: error.message || 'Failed to update settings',
-      });
-    }
-  }
+  settingsController.updateUserSettings
 );
 
 /**
  * POST /settings/reset
  * Reset settings to defaults
  */
-router.post('/reset', async (req, res) => {
-  try {
-    const userId = req.user!.id;
-
-    const defaultSettings = await settingsService.resetUserSettings(userId);
-
-    res.json({
-      success: true,
-      data: defaultSettings,
-      message: 'Settings reset to defaults',
-    });
-  } catch (error: any) {
-    logger.error('Reset settings error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to reset settings',
-    });
-  }
-});
+router.post('/reset', settingsController.resetUserSettings);
 
 // ==================== NOTIFICATIONS ====================
 
@@ -104,24 +50,7 @@ router.post('/reset', async (req, res) => {
  * GET /settings/notifications
  * Get notification preferences
  */
-router.get('/notifications', async (req, res) => {
-  try {
-    const userId = req.user!.id;
-
-    const preferences = await settingsService.getNotificationPreferences(userId);
-
-    res.json({
-      success: true,
-      data: preferences,
-    });
-  } catch (error: any) {
-    logger.error('Get notification preferences error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch notification preferences',
-    });
-  }
-});
+router.get('/notifications', settingsController.getNotificationPreferences);
 
 /**
  * PUT /settings/notifications
@@ -134,25 +63,7 @@ router.put(
     body('push').optional().isObject(),
   ],
   validate,
-  async (req, res) => {
-    try {
-      const userId = req.user!.id;
-
-      const preferences = await settingsService.updateNotificationPreferences(userId, req.body);
-
-      res.json({
-        success: true,
-        data: preferences,
-        message: 'Notification preferences updated',
-      });
-    } catch (error: any) {
-      logger.error('Update notification preferences error:', error);
-      res.status(400).json({
-        success: false,
-        error: error.message || 'Failed to update notification preferences',
-      });
-    }
-  }
+  settingsController.updateNotificationPreferences
 );
 
 // ==================== SECURITY ====================
@@ -161,24 +72,7 @@ router.put(
  * GET /settings/security
  * Get security settings
  */
-router.get('/security', async (req, res) => {
-  try {
-    const userId = req.user!.id;
-
-    const securitySettings = await settingsService.getSecuritySettings(userId);
-
-    res.json({
-      success: true,
-      data: securitySettings,
-    });
-  } catch (error: any) {
-    logger.error('Get security settings error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch security settings',
-    });
-  }
-});
+router.get('/security', settingsController.getSecuritySettings);
 
 /**
  * POST /settings/security/password

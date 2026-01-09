@@ -2,8 +2,7 @@ import { Router } from 'express';
 import { body, param, query } from 'express-validator';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
-import savingsService from '../services/savings.service';
-import logger from '../utils/logger';
+import savingsController from '../controllers/savings.controller';
 
 const router = Router();
 
@@ -13,68 +12,19 @@ const router = Router();
  * GET /savings/plans
  * Get all active savings plans
  */
-router.get('/plans', authenticate, async (req, res) => {
-  try {
-    const plans = await savingsService.getSavingsPlans();
-
-    res.json({
-      success: true,
-      data: plans,
-    });
-  } catch (error: any) {
-    logger.error('Get savings plans error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch savings plans',
-    });
-  }
-});
+router.get('/plans', authenticate, savingsController.getSavingsPlans);
 
 /**
  * GET /savings/my-savings
  * Get user's savings deposits
  */
-router.get('/my-savings', authenticate, async (req, res) => {
-  try {
-    const userId = req.user!.id;
-
-    const savings = await savingsService.getUserSavings(userId);
-
-    res.json({
-      success: true,
-      data: savings,
-    });
-  } catch (error: any) {
-    logger.error('Get user savings error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch savings',
-    });
-  }
-});
+router.get('/my-savings', authenticate, savingsController.getUserSavings);
 
 /**
  * GET /savings/analytics
  * Get savings analytics for user
  */
-router.get('/analytics', authenticate, async (req, res) => {
-  try {
-    const userId = req.user!.id;
-
-    const analytics = await savingsService.getSavingsAnalytics(userId);
-
-    res.json({
-      success: true,
-      data: analytics,
-    });
-  } catch (error: any) {
-    logger.error('Get savings analytics error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch analytics',
-    });
-  }
-});
+router.get('/analytics', authenticate, savingsController.getSavingsAnalytics);
 
 /**
  * POST /savings/estimate
@@ -89,24 +39,7 @@ router.post(
     body('days').optional().isInt({ min: 1 }),
   ],
   validate,
-  async (req, res) => {
-    try {
-      const { planId, amount, days } = req.body;
-
-      const estimate = await savingsService.estimateReturns(planId, amount, days);
-
-      res.json({
-        success: true,
-        data: estimate,
-      });
-    } catch (error: any) {
-      logger.error('Estimate returns error:', error);
-      res.status(error.statusCode || 400).json({
-        success: false,
-        error: error.message || 'Failed to estimate returns',
-      });
-    }
-  }
+  savingsController.estimateReturns
 );
 
 /**
@@ -121,30 +54,7 @@ router.post(
     body('amount').isFloat({ min: 0.01 }),
   ],
   validate,
-  async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      const { planId, amount } = req.body;
-
-      const deposit = await savingsService.createSavingsDeposit({
-        userId,
-        planId,
-        amount,
-      });
-
-      res.status(201).json({
-        success: true,
-        data: deposit,
-        message: 'Savings deposit created successfully',
-      });
-    } catch (error: any) {
-      logger.error('Create savings deposit error:', error);
-      res.status(error.statusCode || 400).json({
-        success: false,
-        error: error.message || 'Failed to create savings deposit',
-      });
-    }
-  }
+  savingsController.createSavingsDeposit
 );
 
 /**
@@ -156,31 +66,7 @@ router.post(
   authenticate,
   [param('depositId').isString()],
   validate,
-  async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      const { depositId } = req.params;
-
-      const result = await savingsService.withdrawSavings({
-        userId,
-        depositId,
-      });
-
-      res.json({
-        success: true,
-        data: result,
-        message: result.earlyWithdrawal
-          ? 'Early withdrawal completed with penalty'
-          : 'Withdrawal completed successfully',
-      });
-    } catch (error: any) {
-      logger.error('Withdraw savings error:', error);
-      res.status(error.statusCode || 400).json({
-        success: false,
-        error: error.message || 'Failed to withdraw from savings',
-      });
-    }
-  }
+  savingsController.withdrawSavings
 );
 
 // ==================== ADMIN SAVINGS ROUTES ====================
@@ -199,28 +85,7 @@ router.get(
     query('offset').optional().isInt({ min: 0 }),
   ],
   validate,
-  async (req, res) => {
-    try {
-      const { status, limit, offset } = req.query;
-
-      const result = await savingsService.adminGetAllSavings({
-        status: status as string,
-        limit: limit ? parseInt(limit as string) : undefined,
-        offset: offset ? parseInt(offset as string) : undefined,
-      });
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error: any) {
-      logger.error('Admin get savings deposits error:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Failed to fetch savings deposits',
-      });
-    }
-  }
+  savingsController.adminGetAllSavings
 );
 
 /**
@@ -231,22 +96,7 @@ router.get(
   '/admin/plans',
   authenticate,
   authorize(['ADMIN', 'SUPPORT']),
-  async (req, res) => {
-    try {
-      const plans = await savingsService.getSavingsPlans();
-
-      res.json({
-        success: true,
-        data: plans,
-      });
-    } catch (error: any) {
-      logger.error('Admin get plans error:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Failed to fetch plans',
-      });
-    }
-  }
+  savingsController.adminGetPlans
 );
 
 /**
@@ -272,23 +122,7 @@ router.post(
     body('order').optional().isInt(),
   ],
   validate,
-  async (req, res) => {
-    try {
-      const plan = await savingsService.adminCreatePlan(req.body);
-
-      res.status(201).json({
-        success: true,
-        data: plan,
-        message: 'Savings plan created successfully',
-      });
-    } catch (error: any) {
-      logger.error('Create savings plan error:', error);
-      res.status(400).json({
-        success: false,
-        error: error.message || 'Failed to create savings plan',
-      });
-    }
-  }
+  savingsController.adminCreatePlan
 );
 
 /**
@@ -315,25 +149,7 @@ router.put(
     body('order').optional().isInt(),
   ],
   validate,
-  async (req, res) => {
-    try {
-      const { planId } = req.params;
-
-      const plan = await savingsService.adminUpdatePlan(planId, req.body);
-
-      res.json({
-        success: true,
-        data: plan,
-        message: 'Savings plan updated successfully',
-      });
-    } catch (error: any) {
-      logger.error('Update savings plan error:', error);
-      res.status(error.statusCode || 400).json({
-        success: false,
-        error: error.message || 'Failed to update savings plan',
-      });
-    }
-  }
+  savingsController.adminUpdatePlan
 );
 
 /**
@@ -346,24 +162,7 @@ router.delete(
   authorize(['ADMIN']),
   [param('planId').isString()],
   validate,
-  async (req, res) => {
-    try {
-      const { planId } = req.params;
-
-      const result = await savingsService.adminDeletePlan(planId);
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error: any) {
-      logger.error('Delete savings plan error:', error);
-      res.status(error.statusCode || 400).json({
-        success: false,
-        error: error.message || 'Failed to delete savings plan',
-      });
-    }
-  }
+  savingsController.adminDeletePlan
 );
 
 export default router;
