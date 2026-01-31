@@ -43,10 +43,68 @@ class NotificationsService {
 
     logger.info(`Notification created: ${notification.id} | Type: ${input.type} | User: ${input.userId}`);
 
-    // TODO: Trigger WebSocket push notification
-    // TODO: Trigger push notification service (FCM, etc.)
+    // Trigger WebSocket push notification
+    this.sendWebSocketNotification(input.userId, notification);
+
+    // Trigger FCM push notification (if configured)
+    this.sendFCMNotification(input.userId, notification);
 
     return notification;
+  }
+
+  /**
+   * Send real-time notification via WebSocket
+   */
+  private sendWebSocketNotification(userId: string, notification: any) {
+    try {
+      const wsServer = (global as any).wsServer;
+      if (wsServer) {
+        wsServer.broadcastNotification(userId, notification);
+        logger.debug(`WebSocket notification sent to user ${userId}`);
+      } else {
+        logger.warn('WebSocket server not available for notifications');
+      }
+    } catch (error) {
+      logger.error('Error sending WebSocket notification:', error);
+    }
+  }
+
+  /**
+   * Send push notification via FCM (Firebase Cloud Messaging)
+   * This is a placeholder for when FCM is configured
+   */
+  private async sendFCMNotification(userId: string, notification: any) {
+    try {
+      // Check if FCM is configured
+      if (!process.env.FCM_SERVER_KEY) {
+        return; // FCM not configured, skip silently
+      }
+
+      // Get user's FCM tokens from database
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { fcmTokens: true },
+      });
+
+      if (!user || !user.fcmTokens || user.fcmTokens.length === 0) {
+        return; // No FCM tokens registered
+      }
+
+      // TODO: Implement FCM push notification using firebase-admin SDK
+      // Example:
+      // await admin.messaging().sendMulticast({
+      //   tokens: user.fcmTokens,
+      //   notification: {
+      //     title: notification.title,
+      //     body: notification.message,
+      //   },
+      //   data: notification.data,
+      // });
+
+      logger.debug(`FCM notification would be sent to user ${userId} (not implemented yet)`);
+    } catch (error) {
+      logger.error('Error sending FCM notification:', error);
+    }
   }
 
   /**

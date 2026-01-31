@@ -80,8 +80,11 @@ class SupportService {
 
     logger.info(`Support ticket created: ${ticket.ticketNumber} | User: ${input.userId} | Category: ${input.category}`);
 
-    // TODO: Notify support team of new ticket
-    // TODO: Send confirmation email to user
+    // Notify support team of new ticket
+    this.notifySupportTeam(ticket);
+
+    // Send confirmation email to user
+    this.sendTicketCreatedEmail(ticket);
 
     return ticket;
   }
@@ -367,8 +370,8 @@ class SupportService {
 
     logger.info(`Message added to ticket ${ticket.ticketNumber} | By: ${input.isStaff ? 'Staff' : 'User'}`);
 
-    // TODO: Send notification to user/staff
-    // TODO: Send email notification
+    // Send notification to user/staff
+    this.sendMessageNotification(ticket, message, input.isStaff);
 
     return message;
   }
@@ -569,6 +572,142 @@ class SupportService {
     logger.info(`Auto-closed ${result.count} resolved tickets older than ${daysResolved} days`);
 
     return result.count;
+  }
+
+  // ==================== EMAIL NOTIFICATION HELPERS ====================
+
+  /**
+   * Notify support team of new ticket
+   */
+  private notifySupportTeam(ticket: any) {
+    try {
+      const wsServer = (global as any).wsServer;
+      if (wsServer) {
+        wsServer.broadcastToAdmins('support:new-ticket', {
+          ticketId: ticket.id,
+          ticketNumber: ticket.ticketNumber,
+          category: ticket.category,
+          priority: ticket.priority,
+          subject: ticket.subject,
+          user: ticket.user,
+        });
+        logger.debug(`Notified support team of new ticket: ${ticket.ticketNumber}`);
+      }
+    } catch (error) {
+      logger.error('Error notifying support team:', error);
+    }
+  }
+
+  /**
+   * Send ticket created email to user
+   */
+  private async sendTicketCreatedEmail(ticket: any) {
+    try {
+      if (!process.env.EMAIL_ENABLED) {
+        return; // Email not configured, skip silently
+      }
+
+      // TODO: Implement email sending using your preferred service (SendGrid, AWS SES, etc.)
+      // Example:
+      // await emailService.send({
+      //   to: ticket.user.email,
+      //   subject: `Support Ticket Created: ${ticket.ticketNumber}`,
+      //   template: 'ticket-created',
+      //   data: {
+      //     name: ticket.user.firstName || ticket.user.email,
+      //     ticketNumber: ticket.ticketNumber,
+      //     subject: ticket.subject,
+      //     category: ticket.category,
+      //   },
+      // });
+
+      logger.debug(`Ticket created email would be sent to ${ticket.user.email} (email service not configured)`);
+    } catch (error) {
+      logger.error('Error sending ticket created email:', error);
+    }
+  }
+
+  /**
+   * Send message notification
+   */
+  private async sendMessageNotification(ticket: any, message: any, isStaff: boolean) {
+    try {
+      const wsServer = (global as any).wsServer;
+
+      if (isStaff) {
+        // Notify user of staff reply
+        if (wsServer) {
+          wsServer.broadcastNotification(ticket.userId, {
+            type: 'SUPPORT_REPLY',
+            title: 'Support Team Replied',
+            message: `Your ticket ${ticket.ticketNumber} has a new reply`,
+            data: { ticketId: ticket.id, ticketNumber: ticket.ticketNumber },
+          });
+        }
+
+        // Send email to user
+        this.sendStaffReplyEmail(ticket);
+      } else {
+        // Notify support team of user reply
+        if (wsServer) {
+          wsServer.broadcastToAdmins('support:user-reply', {
+            ticketId: ticket.id,
+            ticketNumber: ticket.ticketNumber,
+            message: message.message,
+          });
+        }
+
+        // Send email to assigned agent
+        if (ticket.assignedTo) {
+          this.sendUserReplyEmail(ticket);
+        }
+      }
+    } catch (error) {
+      logger.error('Error sending message notification:', error);
+    }
+  }
+
+  /**
+   * Send staff reply email to user
+   */
+  private async sendStaffReplyEmail(ticket: any) {
+    try {
+      if (!process.env.EMAIL_ENABLED) {
+        return;
+      }
+
+      // TODO: Implement email sending
+      // await emailService.send({
+      //   to: ticket.user.email,
+      //   subject: `Support Reply: ${ticket.ticketNumber}`,
+      //   template: 'staff-reply',
+      //   data: {
+      //     name: ticket.user.firstName || ticket.user.email,
+      //     ticketNumber: ticket.ticketNumber,
+      //     subject: ticket.subject,
+      //   },
+      // });
+
+      logger.debug(`Staff reply email would be sent (email service not configured)`);
+    } catch (error) {
+      logger.error('Error sending staff reply email:', error);
+    }
+  }
+
+  /**
+   * Send user reply email to assigned agent
+   */
+  private async sendUserReplyEmail(ticket: any) {
+    try {
+      if (!process.env.EMAIL_ENABLED) {
+        return;
+      }
+
+      // TODO: Implement email sending to agent
+      logger.debug(`User reply email would be sent to agent (email service not configured)`);
+    } catch (error) {
+      logger.error('Error sending user reply email:', error);
+    }
   }
 }
 

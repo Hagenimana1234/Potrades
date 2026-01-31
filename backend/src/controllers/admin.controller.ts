@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../types';
 import prisma from '../utils/database';
+import logger from '../utils/logger';
 import tradingService from '../services/trading.service';
 import walletService from '../services/wallet.service';
 import marketDataService from '../services/marketData.service';
@@ -9,6 +10,28 @@ import affiliateService from '../services/affiliate.service';
 import { priceOrchestrationService } from '../services/priceOrchestration.service';
 
 export class AdminController {
+  /**
+   * Helper method to create audit logs for admin actions
+   */
+  private async createAuditLog(userId: string, actionDescription: string, entity: string, entityId: string, details?: any) {
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'ADMIN_ACTION',
+          entity,
+          entityId,
+          details: {
+            ...details,
+            actionDescription,
+          },
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to create audit log:', error);
+    }
+  }
+
   // User Management
   async getUsers(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
@@ -60,13 +83,18 @@ export class AdminController {
         data: { status },
       });
 
+      // Determine audit action based on status
+      let auditAction = 'ADMIN_ACTION';
+      if (status === 'SUSPENDED') auditAction = 'USER_SUSPENDED';
+      else if (status === 'BANNED') auditAction = 'USER_BANNED';
+
       await prisma.auditLog.create({
         data: {
           userId: req.user!.userId,
-          action: 'USER_' + status,
+          action: auditAction as any,
           entity: 'User',
           entityId: userId,
-          details: { status, reason },
+          details: { status, reason, actionDescription: `User status changed to ${status}` },
         },
       });
 
@@ -104,15 +132,6 @@ export class AdminController {
 
       const result = await tradingService.adminGetTrades(filters);
       res.json({ success: true, data: result });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async getPlatformExposure(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const exposure = await tradingService.calculatePlatformExposure();
-      res.json({ success: true, data: exposure });
     } catch (error) {
       next(error);
     }
@@ -157,6 +176,14 @@ export class AdminController {
         data: updateData,
       });
 
+      await this.createAuditLog(
+        req.user!.userId,
+        'ASSET_UPDATE',
+        'Asset',
+        assetId,
+        updateData
+      );
+
       res.json({ success: true, data: asset });
     } catch (error) {
       next(error);
@@ -166,6 +193,15 @@ export class AdminController {
   async createAsset(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const asset = await marketDataService.adminUpsertAsset(req.body);
+
+      await this.createAuditLog(
+        req.user!.userId,
+        'ASSET_CREATE',
+        'Asset',
+        asset.id,
+        req.body
+      );
+
       res.json({ success: true, data: asset });
     } catch (error) {
       next(error);
@@ -196,6 +232,15 @@ export class AdminController {
       const adminId = req.user!.userId;
 
       const result = await copyTradingService.approveCopyTrader(copyTraderId, adminId);
+
+      await this.createAuditLog(
+        adminId,
+        'COPY_TRADER_APPROVE',
+        'CopyTrader',
+        copyTraderId,
+        { status: 'APPROVED' }
+      );
+
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -208,6 +253,15 @@ export class AdminController {
       const adminId = req.user!.userId;
 
       const result = await copyTradingService.suspendCopyTrader(copyTraderId, adminId);
+
+      await this.createAuditLog(
+        adminId,
+        'COPY_TRADER_SUSPEND',
+        'CopyTrader',
+        copyTraderId,
+        { status: 'SUSPENDED' }
+      );
+
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -238,6 +292,15 @@ export class AdminController {
       const settings = req.body;
 
       const result = await affiliateService.approveAffiliate(affiliateId, adminId, settings);
+
+      await this.createAuditLog(
+        adminId,
+        'AFFILIATE_APPROVE',
+        'Affiliate',
+        affiliateId,
+        { settings }
+      );
+
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -259,6 +322,15 @@ export class AdminController {
       const adminId = req.user!.userId;
 
       const result = await affiliateService.approveCommission(commissionId, adminId);
+
+      await this.createAuditLog(
+        adminId,
+        'COMMISSION_APPROVE',
+        'Commission',
+        commissionId,
+        { status: 'APPROVED' }
+      );
+
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -276,6 +348,14 @@ export class AdminController {
         adminId,
         paymentMethod,
         paymentRef
+      );
+
+      await this.createAuditLog(
+        adminId,
+        'COMMISSION_PAY',
+        'Commission',
+        commissionId,
+        { paymentMethod, paymentRef }
       );
 
       res.json({ success: true, data: result });
@@ -307,6 +387,14 @@ export class AdminController {
         update: { value },
         create: { key, value },
       });
+
+      await this.createAuditLog(
+        req.user!.userId,
+        'SYSTEM_SETTING_UPDATE',
+        'SystemSetting',
+        key,
+        { key, value }
+      );
 
       res.json({ success: true, data: setting });
     } catch (error) {
@@ -411,10 +499,11 @@ export class AdminController {
       await prisma.auditLog.create({
         data: {
           userId: adminId,
-          action: 'OTC_CONFIG_UPDATE',
+          action: 'ADMIN_ACTION',
           entity: 'OTCPricingConfig',
           entityId: config.id,
           details: {
+            actionDescription: 'OTC pricing config updated',
             assetId,
             spreadPercent,
             slippagePercent,
@@ -503,10 +592,13 @@ export class AdminController {
       await prisma.auditLog.create({
         data: {
           userId: req.user!.userId,
-          action: 'POL_CACHE_CLEAR',
+          action: 'ADMIN_ACTION',
           entity: 'System',
           entityId: 'pol-cache',
-          details: { timestamp: new Date() },
+          details: {
+            actionDescription: 'POL cache cleared',
+            timestamp: new Date(),
+          },
         },
       });
 

@@ -80,6 +80,30 @@ export function requireRole(...roles: UserRole[]) {
 export const requireAdmin = requireRole(UserRole.ADMIN);
 
 /**
+ * Authorize with specific roles (flexible version of requireRole)
+ * Accepts role names as strings for more flexible usage
+ */
+export function authorize(roles: string[]) {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return next(new AuthenticationError('Authentication required'));
+    }
+
+    const userRole = req.user.role as string;
+
+    if (!roles.includes(userRole)) {
+      return next(
+        new AuthorizationError(
+          `Requires one of these roles: ${roles.join(', ')}`
+        )
+      );
+    }
+
+    next();
+  };
+}
+
+/**
  * Require user to be active (not suspended/banned)
  */
 export async function requireActiveUser(
