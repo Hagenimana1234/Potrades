@@ -5,7 +5,7 @@ import logger from '../utils/logger';
 class AffiliateController {
   // ==================== USER AFFILIATE ROUTES ====================
 
-  async applyAsAffiliate(req: Request, res: Response, next: NextFunction) {
+  async applyAsAffiliate(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { commissionModel } = req.body;
@@ -28,7 +28,7 @@ class AffiliateController {
     }
   }
 
-  async getAffiliateDetails(req: Request, res: Response, next: NextFunction) {
+  async getAffiliateDetails(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -47,7 +47,7 @@ class AffiliateController {
     }
   }
 
-  async getAffiliateStats(req: Request, res: Response, next: NextFunction) {
+  async getAffiliateStats(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -66,7 +66,7 @@ class AffiliateController {
     }
   }
 
-  async getAffiliateCommissions(req: Request, res: Response, next: NextFunction) {
+  async getAffiliateCommissions(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { status, type, limit, offset } = req.query;
@@ -93,7 +93,7 @@ class AffiliateController {
     }
   }
 
-  async getReferralStats(req: Request, res: Response, next: NextFunction) {
+  async getReferralStats(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -114,7 +114,7 @@ class AffiliateController {
 
   // ==================== ANALYTICS ROUTES ====================
 
-  async getPerformanceAnalytics(req: Request, res: Response, next: NextFunction) {
+  async getPerformanceAnalytics(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const days = req.query.days ? parseInt(req.query.days as string) : 30;
@@ -137,7 +137,7 @@ class AffiliateController {
 
   // ==================== PAYOUT ROUTES ====================
 
-  async requestPayout(req: Request, res: Response, next: NextFunction) {
+  async requestPayout(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { amount, method, destination } = req.body;
@@ -164,7 +164,7 @@ class AffiliateController {
     }
   }
 
-  async getAffiliatePayouts(req: Request, res: Response, next: NextFunction) {
+  async getAffiliatePayouts(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -186,7 +186,7 @@ class AffiliateController {
 
   // ==================== CONTEST ROUTES ====================
 
-  async getActiveContests(req: Request, res: Response, next: NextFunction) {
+  async getActiveContests(_req: Request, res: Response, _next: NextFunction) {
     try {
       const contests = await affiliateService.getActiveContests();
 
@@ -203,7 +203,7 @@ class AffiliateController {
     }
   }
 
-  async getContestLeaderboard(req: Request, res: Response, next: NextFunction) {
+  async getContestLeaderboard(req: Request, res: Response, _next: NextFunction) {
     try {
       const contestId = req.params.contestId;
 
@@ -224,7 +224,7 @@ class AffiliateController {
 
   // ==================== ADMIN AFFILIATE ROUTES ====================
 
-  async adminGetAffiliates(req: Request, res: Response, next: NextFunction) {
+  async adminGetAffiliates(req: Request, res: Response, _next: NextFunction) {
     try {
       const { status, minTotalCommission, limit, offset } = req.query;
 
@@ -248,7 +248,7 @@ class AffiliateController {
     }
   }
 
-  async approveAffiliate(req: Request, res: Response, next: NextFunction) {
+  async approveAffiliate(req: Request, res: Response, _next: NextFunction) {
     try {
       const affiliateId = req.params.affiliateId;
       const adminId = req.user!.id;
@@ -275,7 +275,7 @@ class AffiliateController {
     }
   }
 
-  async suspendAffiliate(req: Request, res: Response, next: NextFunction) {
+  async suspendAffiliate(req: Request, res: Response, _next: NextFunction) {
     try {
       const affiliateId = req.params.affiliateId;
       const adminId = req.user!.id;
@@ -296,7 +296,7 @@ class AffiliateController {
     }
   }
 
-  async adminGetPendingCommissions(req: Request, res: Response, next: NextFunction) {
+  async adminGetPendingCommissions(req: Request, res: Response, _next: NextFunction) {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
 
@@ -315,7 +315,7 @@ class AffiliateController {
     }
   }
 
-  async approveCommission(req: Request, res: Response, next: NextFunction) {
+  async approveCommission(req: Request, res: Response, _next: NextFunction) {
     try {
       const commissionId = req.params.commissionId;
       const adminId = req.user!.id;
@@ -336,7 +336,7 @@ class AffiliateController {
     }
   }
 
-  async payCommission(req: Request, res: Response, next: NextFunction) {
+  async payCommission(req: Request, res: Response, _next: NextFunction) {
     try {
       const commissionId = req.params.commissionId;
       const adminId = req.user!.id;
@@ -363,7 +363,7 @@ class AffiliateController {
     }
   }
 
-  async adminGetAffiliateDetails(req: Request, res: Response, next: NextFunction) {
+  async adminGetAffiliateDetails(req: Request, res: Response, _next: NextFunction) {
     try {
       const affiliateId = req.params.affiliateId;
 
@@ -384,7 +384,7 @@ class AffiliateController {
 
   // ==================== ADMIN PAYOUT ROUTES ====================
 
-  async adminGetPendingPayouts(req: Request, res: Response, next: NextFunction) {
+  async adminGetPendingPayouts(_req: Request, res: Response, _next: NextFunction) {
     try {
       const payouts = await affiliateService.adminGetPendingPayouts();
 
@@ -401,7 +401,7 @@ class AffiliateController {
     }
   }
 
-  async processPayout(req: Request, res: Response, next: NextFunction) {
+  async processPayout(req: Request, res: Response, _next: NextFunction) {
     try {
       const payoutId = req.params.payoutId;
       const adminId = req.user!.id;
@@ -429,7 +429,7 @@ class AffiliateController {
 
   // ==================== ADMIN PLAN ROUTES ====================
 
-  async adminGetPlans(req: Request, res: Response, next: NextFunction) {
+  async adminGetPlans(_req: Request, res: Response, _next: NextFunction) {
     try {
       const plans = await affiliateService.adminGetPlans();
 
@@ -446,7 +446,7 @@ class AffiliateController {
     }
   }
 
-  async adminCreatePlan(req: Request, res: Response, next: NextFunction) {
+  async adminCreatePlan(req: Request, res: Response, _next: NextFunction) {
     try {
       const plan = await affiliateService.adminCreatePlan(req.body);
 
@@ -464,7 +464,7 @@ class AffiliateController {
     }
   }
 
-  async adminUpdatePlan(req: Request, res: Response, next: NextFunction) {
+  async adminUpdatePlan(req: Request, res: Response, _next: NextFunction) {
     try {
       const planId = req.params.planId;
 
@@ -484,7 +484,7 @@ class AffiliateController {
     }
   }
 
-  async adminDeletePlan(req: Request, res: Response, next: NextFunction) {
+  async adminDeletePlan(req: Request, res: Response, _next: NextFunction) {
     try {
       const planId = req.params.planId;
 
@@ -505,7 +505,7 @@ class AffiliateController {
 
   // ==================== ADMIN CONTEST ROUTES ====================
 
-  async adminGetContests(req: Request, res: Response, next: NextFunction) {
+  async adminGetContests(_req: Request, res: Response, _next: NextFunction) {
     try {
       const contests = await affiliateService.adminGetContests();
 
@@ -522,7 +522,7 @@ class AffiliateController {
     }
   }
 
-  async adminCreateContest(req: Request, res: Response, next: NextFunction) {
+  async adminCreateContest(req: Request, res: Response, _next: NextFunction) {
     try {
       const contest = await affiliateService.adminCreateContest(req.body);
 
@@ -540,7 +540,7 @@ class AffiliateController {
     }
   }
 
-  async adminUpdateContest(req: Request, res: Response, next: NextFunction) {
+  async adminUpdateContest(req: Request, res: Response, _next: NextFunction) {
     try {
       const contestId = req.params.contestId;
 

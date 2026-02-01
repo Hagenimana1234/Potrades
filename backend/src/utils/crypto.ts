@@ -10,6 +10,7 @@ const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12');
 
 export interface TokenPayload {
   userId: string;
+  id: string; // Alias for userId for backward compatibility
   email: string;
   role: string;
 }

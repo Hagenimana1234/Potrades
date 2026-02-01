@@ -5,7 +5,7 @@ import logger from '../utils/logger';
 class ProfileController {
   // ==================== USER PROFILE ROUTES ====================
 
-  async getUserProfile(req: Request, res: Response, next: NextFunction) {
+  async getUserProfile(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -24,7 +24,7 @@ class ProfileController {
     }
   }
 
-  async updateProfile(req: Request, res: Response, next: NextFunction) {
+  async updateProfile(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { firstName, lastName, phone, country, city, address, dateOfBirth, profilePicture } = req.body;
@@ -56,7 +56,7 @@ class ProfileController {
 
   // ==================== KYC ROUTES ====================
 
-  async uploadKYC(req: Request, res: Response, next: NextFunction) {
+  async uploadKYC(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { documentType, documentNumber, frontImage, backImage, selfieImage } = req.body;
@@ -85,7 +85,7 @@ class ProfileController {
 
   // ==================== SECURITY ROUTES ====================
 
-  async changePassword(req: Request, res: Response, next: NextFunction) {
+  async changePassword(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { currentPassword, newPassword } = req.body;
@@ -109,7 +109,7 @@ class ProfileController {
     }
   }
 
-  async getUserSessions(req: Request, res: Response, next: NextFunction) {
+  async getUserSessions(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -128,7 +128,7 @@ class ProfileController {
     }
   }
 
-  async revokeSession(req: Request, res: Response, next: NextFunction) {
+  async revokeSession(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const sessionId = req.params.sessionId;
@@ -148,7 +148,7 @@ class ProfileController {
     }
   }
 
-  async revokeAllSessions(req: Request, res: Response, next: NextFunction) {
+  async revokeAllSessions(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const currentSessionId = req.sessionId;
@@ -169,7 +169,7 @@ class ProfileController {
     }
   }
 
-  async getActivityLogs(req: Request, res: Response, next: NextFunction) {
+  async getActivityLogs(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
@@ -189,7 +189,7 @@ class ProfileController {
     }
   }
 
-  async updateNotificationPreferences(req: Request, res: Response, next: NextFunction) {
+  async updateNotificationPreferences(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { preferences } = req.body;
@@ -211,7 +211,7 @@ class ProfileController {
 
   // ==================== ADMIN PROFILE ROUTES ====================
 
-  async adminGetUserProfile(req: Request, res: Response, next: NextFunction) {
+  async adminGetUserProfile(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.params.userId;
 
@@ -230,7 +230,7 @@ class ProfileController {
     }
   }
 
-  async getPendingKYC(req: Request, res: Response, next: NextFunction) {
+  async getPendingKYC(req: Request, res: Response, _next: NextFunction) {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
 
@@ -249,7 +249,7 @@ class ProfileController {
     }
   }
 
-  async verifyKYC(req: Request, res: Response, next: NextFunction) {
+  async verifyKYC(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.params.userId;
       const adminId = req.user!.id;
@@ -277,7 +277,7 @@ class ProfileController {
     }
   }
 
-  async adminUpdateUserStatus(req: Request, res: Response, next: NextFunction) {
+  async adminUpdateUserStatus(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.params.userId;
       const adminId = req.user!.id;
@@ -299,7 +299,7 @@ class ProfileController {
     }
   }
 
-  async adminAdjustBalance(req: Request, res: Response, next: NextFunction) {
+  async adminAdjustBalance(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.params.userId;
       const adminId = req.user!.id;

@@ -5,7 +5,7 @@ import logger from '../utils/logger';
 class CopyTradingController {
   // ==================== PUBLIC COPY TRADERS ====================
 
-  async getPublicCopyTraders(req: Request, res: Response, next: NextFunction) {
+  async getPublicCopyTraders(req: Request, res: Response, _next: NextFunction) {
     try {
       const { minWinRate, minTotalTrades, sortBy, limit, offset } = req.query;
 
@@ -30,7 +30,7 @@ class CopyTradingController {
     }
   }
 
-  async getCopyTraderDetails(req: Request, res: Response, next: NextFunction) {
+  async getCopyTraderDetails(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
 
@@ -49,7 +49,7 @@ class CopyTradingController {
     }
   }
 
-  async getCopyTraderPerformance(req: Request, res: Response, next: NextFunction) {
+  async getCopyTraderPerformance(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
       const { days } = req.query;
@@ -72,7 +72,7 @@ class CopyTradingController {
     }
   }
 
-  async getFollowerStatistics(req: Request, res: Response, next: NextFunction) {
+  async getFollowerStatistics(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
 
@@ -93,7 +93,7 @@ class CopyTradingController {
 
   // ==================== USER COPY TRADING ====================
 
-  async followCopyTrader(req: Request, res: Response, next: NextFunction) {
+  async followCopyTrader(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { traderId } = req.params;
@@ -120,7 +120,7 @@ class CopyTradingController {
     }
   }
 
-  async unfollowCopyTrader(req: Request, res: Response, next: NextFunction) {
+  async unfollowCopyTrader(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { traderId } = req.params;
@@ -140,7 +140,7 @@ class CopyTradingController {
     }
   }
 
-  async pauseCopyRelationship(req: Request, res: Response, next: NextFunction) {
+  async pauseCopyRelationship(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { traderId } = req.params;
@@ -160,7 +160,7 @@ class CopyTradingController {
     }
   }
 
-  async resumeCopyRelationship(req: Request, res: Response, next: NextFunction) {
+  async resumeCopyRelationship(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { traderId } = req.params;
@@ -180,7 +180,7 @@ class CopyTradingController {
     }
   }
 
-  async updateCopyRelationship(req: Request, res: Response, next: NextFunction) {
+  async updateCopyRelationship(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { traderId } = req.params;
@@ -206,7 +206,7 @@ class CopyTradingController {
     }
   }
 
-  async getUserCopyRelationships(req: Request, res: Response, next: NextFunction) {
+  async getUserCopyRelationships(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -227,7 +227,7 @@ class CopyTradingController {
 
   // ==================== COPY TRADER PROFILE ====================
 
-  async getMyCopyTraderProfile(req: Request, res: Response, next: NextFunction) {
+  async getMyCopyTraderProfile(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -246,7 +246,7 @@ class CopyTradingController {
     }
   }
 
-  async applyAsCopyTrader(req: Request, res: Response, next: NextFunction) {
+  async applyAsCopyTrader(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { minCopyAmount, maxCopyAmount, profitSharePercent, displayName, bio } = req.body;
@@ -273,7 +273,7 @@ class CopyTradingController {
     }
   }
 
-  async updateCopyTraderProfile(req: Request, res: Response, next: NextFunction) {
+  async updateCopyTraderProfile(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const {

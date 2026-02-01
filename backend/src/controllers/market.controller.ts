@@ -3,7 +3,7 @@ import marketService from '../services/market.service';
 import logger from '../utils/logger';
 
 class MarketController {
-  async getAssets(req: Request, res: Response, next: NextFunction) {
+  async getAssets(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user?.id || null;
       const { type, search, isActive, favoritesOnly, limit, offset } = req.query;
@@ -30,7 +30,7 @@ class MarketController {
     }
   }
 
-  async getAssetDetails(req: Request, res: Response, next: NextFunction) {
+  async getAssetDetails(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user?.id || null;
       const { assetId } = req.params;
@@ -50,7 +50,7 @@ class MarketController {
     }
   }
 
-  async getMarketStats(req: Request, res: Response, next: NextFunction) {
+  async getMarketStats(_req: Request, res: Response, _next: NextFunction) {
     try {
       const stats = await marketService.getMarketStats();
 
@@ -69,7 +69,7 @@ class MarketController {
 
   // ==================== FAVORITES ROUTES ====================
 
-  async getFavorites(req: Request, res: Response, next: NextFunction) {
+  async getFavorites(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -88,7 +88,7 @@ class MarketController {
     }
   }
 
-  async addFavorite(req: Request, res: Response, next: NextFunction) {
+  async addFavorite(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { assetId } = req.params;
@@ -109,7 +109,7 @@ class MarketController {
     }
   }
 
-  async removeFavorite(req: Request, res: Response, next: NextFunction) {
+  async removeFavorite(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { assetId } = req.params;

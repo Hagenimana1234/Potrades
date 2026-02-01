@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
-import { authenticate, authorize } from '../middleware/auth';
-import { validate } from '../middleware/validate';
+import { authenticate, authorize } from '../middleware/auth.middleware';
+import { validate } from '../middleware/validation.middleware';
 import supportController from '../controllers/support.controller';
 import { TicketStatus, TicketPriority, TicketCategory, UserRole } from '@prisma/client';
 

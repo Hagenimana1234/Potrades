@@ -8,7 +8,7 @@ export function errorHandler(
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) {
   // Log error with request context
   logger.error('Request error:', {
@@ -88,9 +88,9 @@ export function errorHandler(
 }
 
 export function notFoundHandler(
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) {
   res.status(404).json({
     success: false,

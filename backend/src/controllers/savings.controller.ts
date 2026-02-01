@@ -5,7 +5,7 @@ import logger from '../utils/logger';
 class SavingsController {
   // ==================== USER SAVINGS ROUTES ====================
 
-  async getSavingsPlans(req: Request, res: Response, next: NextFunction) {
+  async getSavingsPlans(_req: Request, res: Response, _next: NextFunction) {
     try {
       const plans = await savingsService.getSavingsPlans();
 
@@ -22,7 +22,7 @@ class SavingsController {
     }
   }
 
-  async getUserSavings(req: Request, res: Response, next: NextFunction) {
+  async getUserSavings(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -41,7 +41,7 @@ class SavingsController {
     }
   }
 
-  async getSavingsAnalytics(req: Request, res: Response, next: NextFunction) {
+  async getSavingsAnalytics(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -60,7 +60,7 @@ class SavingsController {
     }
   }
 
-  async estimateReturns(req: Request, res: Response, next: NextFunction) {
+  async estimateReturns(req: Request, res: Response, _next: NextFunction) {
     try {
       const { planId, amount, days } = req.body;
 
@@ -79,7 +79,7 @@ class SavingsController {
     }
   }
 
-  async createSavingsDeposit(req: Request, res: Response, next: NextFunction) {
+  async createSavingsDeposit(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { planId, amount } = req.body;
@@ -104,7 +104,7 @@ class SavingsController {
     }
   }
 
-  async withdrawSavings(req: Request, res: Response, next: NextFunction) {
+  async withdrawSavings(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { depositId } = req.params;
@@ -132,7 +132,7 @@ class SavingsController {
 
   // ==================== ADMIN SAVINGS ROUTES ====================
 
-  async adminGetAllSavings(req: Request, res: Response, next: NextFunction) {
+  async adminGetAllSavings(req: Request, res: Response, _next: NextFunction) {
     try {
       const { status, limit, offset } = req.query;
 
@@ -155,7 +155,7 @@ class SavingsController {
     }
   }
 
-  async adminCreatePlan(req: Request, res: Response, next: NextFunction) {
+  async adminCreatePlan(req: Request, res: Response, _next: NextFunction) {
     try {
       const plan = await savingsService.adminCreatePlan(req.body);
 
@@ -173,7 +173,7 @@ class SavingsController {
     }
   }
 
-  async adminUpdatePlan(req: Request, res: Response, next: NextFunction) {
+  async adminUpdatePlan(req: Request, res: Response, _next: NextFunction) {
     try {
       const { planId } = req.params;
 
@@ -193,7 +193,7 @@ class SavingsController {
     }
   }
 
-  async adminDeletePlan(req: Request, res: Response, next: NextFunction) {
+  async adminDeletePlan(req: Request, res: Response, _next: NextFunction) {
     try {
       const { planId } = req.params;
 

@@ -9,7 +9,7 @@ const router = Router();
  * Health check endpoint for load balancers
  * Returns 200 OK if all systems are operational
  */
-router.get('/health', async (req, res) => {
+router.get('/health', async (_req, res) => {
   const healthcheck = {
     uptime: process.uptime(),
     message: 'OK',
@@ -29,7 +29,7 @@ router.get('/health', async (req, res) => {
  * Readiness check - verifies all dependencies are ready
  * Used by load balancers to determine if instance can receive traffic
  */
-router.get('/ready', async (req, res) => {
+router.get('/ready', async (_req, res) => {
   const checks = {
     status: 'ready',
     timestamp: Date.now(),
@@ -62,7 +62,7 @@ router.get('/ready', async (req, res) => {
  * Liveness check - verifies instance is alive
  * Used by orchestrators (Kubernetes, ECS) for restart decisions
  */
-router.get('/live', (req, res) => {
+router.get('/live', (_req, res) => {
   res.status(200).json({
     status: 'alive',
     timestamp: Date.now(),
@@ -73,7 +73,7 @@ router.get('/live', (req, res) => {
 /**
  * Metrics endpoint for monitoring
  */
-router.get('/metrics', async (req, res) => {
+router.get('/metrics', async (_req, res) => {
   const metrics = {
     timestamp: Date.now(),
     instance: process.env.INSTANCE_ID || os.hostname(),

@@ -3,7 +3,7 @@ import { supportService } from '../services/support.service';
 import { TicketStatus, TicketPriority, UserRole } from '@prisma/client';
 
 class SupportController {
-  async getTickets(req: Request, res: Response, next: NextFunction) {
+  async getTickets(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const userRole = req.user!.role;
@@ -34,7 +34,7 @@ class SupportController {
     }
   }
 
-  async getUserTickets(req: Request, res: Response, next: NextFunction) {
+  async getUserTickets(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { status } = req.query;
@@ -53,7 +53,7 @@ class SupportController {
     }
   }
 
-  async getTicketStats(req: Request, res: Response, next: NextFunction) {
+  async getTicketStats(req: Request, res: Response, _next: NextFunction) {
     try {
       const { days = 30 } = req.query;
 
@@ -71,7 +71,7 @@ class SupportController {
     }
   }
 
-  async getTicketById(req: Request, res: Response, next: NextFunction) {
+  async getTicketById(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
       const userId = req.user!.userId;
@@ -95,7 +95,7 @@ class SupportController {
     }
   }
 
-  async getTicketByNumber(req: Request, res: Response, next: NextFunction) {
+  async getTicketByNumber(req: Request, res: Response, _next: NextFunction) {
     try {
       const { ticketNumber } = req.params;
       const userId = req.user!.userId;
@@ -118,7 +118,7 @@ class SupportController {
     }
   }
 
-  async createTicket(req: Request, res: Response, next: NextFunction) {
+  async createTicket(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { category, subject, description, priority } = req.body;
@@ -144,7 +144,7 @@ class SupportController {
     }
   }
 
-  async updateTicket(req: Request, res: Response, next: NextFunction) {
+  async updateTicket(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
       const userId = req.user!.userId;
@@ -174,7 +174,7 @@ class SupportController {
     }
   }
 
-  async assignTicket(req: Request, res: Response, next: NextFunction) {
+  async assignTicket(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
       const { agentId } = req.body;
@@ -194,7 +194,7 @@ class SupportController {
     }
   }
 
-  async resolveTicket(req: Request, res: Response, next: NextFunction) {
+  async resolveTicket(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
       const { resolution } = req.body;
@@ -215,7 +215,7 @@ class SupportController {
     }
   }
 
-  async closeTicket(req: Request, res: Response, next: NextFunction) {
+  async closeTicket(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
       const userId = req.user!.userId;
@@ -235,7 +235,7 @@ class SupportController {
     }
   }
 
-  async reopenTicket(req: Request, res: Response, next: NextFunction) {
+  async reopenTicket(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
 
@@ -254,7 +254,7 @@ class SupportController {
     }
   }
 
-  async addMessage(req: Request, res: Response, next: NextFunction) {
+  async addMessage(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
       const { message, attachments } = req.body;
@@ -284,7 +284,7 @@ class SupportController {
     }
   }
 
-  async getTicketMessages(req: Request, res: Response, next: NextFunction) {
+  async getTicketMessages(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
 

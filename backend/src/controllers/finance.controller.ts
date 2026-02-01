@@ -5,7 +5,7 @@ import logger from '../utils/logger';
 class FinanceController {
   // ==================== PLATFORM WALLETS ====================
 
-  async getPlatformWallets(req: Request, res: Response, next: NextFunction) {
+  async getPlatformWallets(_req: Request, res: Response, _next: NextFunction) {
     try {
       const wallets = await financeService.getPlatformWallets();
       res.json({
@@ -23,7 +23,7 @@ class FinanceController {
 
   // ==================== DEPOSITS ====================
 
-  async createDeposit(req: Request, res: Response, next: NextFunction) {
+  async createDeposit(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { amount, currency, method, cryptoNetwork, txHash, walletAddress, uploadedProof } = req.body;
@@ -53,7 +53,7 @@ class FinanceController {
     }
   }
 
-  async getUserDeposits(req: Request, res: Response, next: NextFunction) {
+  async getUserDeposits(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
@@ -73,7 +73,7 @@ class FinanceController {
     }
   }
 
-  async getDepositById(req: Request, res: Response, next: NextFunction) {
+  async getDepositById(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const depositId = req.params.id;
@@ -109,7 +109,7 @@ class FinanceController {
 
   // ==================== WITHDRAWALS ====================
 
-  async createWithdrawal(req: Request, res: Response, next: NextFunction) {
+  async createWithdrawal(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const { amount, currency, method, destination, cryptoNetwork, cryptoAddress } = req.body;
@@ -138,7 +138,7 @@ class FinanceController {
     }
   }
 
-  async getUserWithdrawals(req: Request, res: Response, next: NextFunction) {
+  async getUserWithdrawals(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
@@ -158,7 +158,7 @@ class FinanceController {
     }
   }
 
-  async getWithdrawalById(req: Request, res: Response, next: NextFunction) {
+  async getWithdrawalById(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const withdrawalId = req.params.id;
@@ -194,7 +194,7 @@ class FinanceController {
 
   // ==================== TRANSACTIONS ====================
 
-  async getUserTransactions(req: Request, res: Response, next: NextFunction) {
+  async getUserTransactions(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
@@ -214,7 +214,7 @@ class FinanceController {
     }
   }
 
-  async getUserPnLSummary(req: Request, res: Response, next: NextFunction) {
+  async getUserPnLSummary(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -235,7 +235,7 @@ class FinanceController {
 
   // ==================== ADMIN ROUTES ====================
 
-  async getPendingDeposits(req: Request, res: Response, next: NextFunction) {
+  async getPendingDeposits(_req: Request, res: Response, _next: NextFunction) {
     try {
       const deposits = await financeService.getPendingDeposits();
 
@@ -252,7 +252,7 @@ class FinanceController {
     }
   }
 
-  async approveDeposit(req: Request, res: Response, next: NextFunction) {
+  async approveDeposit(req: Request, res: Response, _next: NextFunction) {
     try {
       const depositId = req.params.id;
       const approvedBy = req.user!.id;
@@ -276,7 +276,7 @@ class FinanceController {
     }
   }
 
-  async rejectDeposit(req: Request, res: Response, next: NextFunction) {
+  async rejectDeposit(req: Request, res: Response, _next: NextFunction) {
     try {
       const depositId = req.params.id;
       const { rejectionReason } = req.body;
@@ -300,7 +300,7 @@ class FinanceController {
     }
   }
 
-  async getPendingWithdrawals(req: Request, res: Response, next: NextFunction) {
+  async getPendingWithdrawals(_req: Request, res: Response, _next: NextFunction) {
     try {
       const withdrawals = await financeService.getPendingWithdrawals();
 
@@ -317,7 +317,7 @@ class FinanceController {
     }
   }
 
-  async approveWithdrawal(req: Request, res: Response, next: NextFunction) {
+  async approveWithdrawal(req: Request, res: Response, _next: NextFunction) {
     try {
       const withdrawalId = req.params.id;
       const approvedBy = req.user!.id;
@@ -343,7 +343,7 @@ class FinanceController {
     }
   }
 
-  async rejectWithdrawal(req: Request, res: Response, next: NextFunction) {
+  async rejectWithdrawal(req: Request, res: Response, _next: NextFunction) {
     try {
       const withdrawalId = req.params.id;
       const { rejectionReason } = req.body;
@@ -366,7 +366,7 @@ class FinanceController {
 
   // ==================== ADMIN PLATFORM WALLET ROUTES ====================
 
-  async getAllPlatformWallets(req: Request, res: Response, next: NextFunction) {
+  async getAllPlatformWallets(_req: Request, res: Response, _next: NextFunction) {
     try {
       const wallets = await financeService.getAllPlatformWallets();
 
@@ -383,7 +383,7 @@ class FinanceController {
     }
   }
 
-  async createPlatformWallet(req: Request, res: Response, next: NextFunction) {
+  async createPlatformWallet(req: Request, res: Response, _next: NextFunction) {
     try {
       const { network, address, label, notes, qrCode } = req.body;
 
@@ -409,7 +409,7 @@ class FinanceController {
     }
   }
 
-  async updatePlatformWallet(req: Request, res: Response, next: NextFunction) {
+  async updatePlatformWallet(req: Request, res: Response, _next: NextFunction) {
     try {
       const network = req.params.network;
       const { address, label, notes, qrCode, isActive } = req.body;
@@ -436,7 +436,7 @@ class FinanceController {
     }
   }
 
-  async deactivatePlatformWallet(req: Request, res: Response, next: NextFunction) {
+  async deactivatePlatformWallet(req: Request, res: Response, _next: NextFunction) {
     try {
       const network = req.params.network;
 

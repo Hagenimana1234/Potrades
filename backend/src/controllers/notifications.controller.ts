@@ -3,7 +3,7 @@ import { notificationsService } from '../services/notifications.service';
 import { NotificationType, NotificationStatus } from '@prisma/client';
 
 class NotificationsController {
-  async getUserNotifications(req: Request, res: Response, next: NextFunction) {
+  async getUserNotifications(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { type, status, page = 1, limit = 20 } = req.query;
@@ -32,7 +32,7 @@ class NotificationsController {
     }
   }
 
-  async getUnreadCount(req: Request, res: Response, next: NextFunction) {
+  async getUnreadCount(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
 
@@ -50,7 +50,7 @@ class NotificationsController {
     }
   }
 
-  async getUserNotificationStats(req: Request, res: Response, next: NextFunction) {
+  async getUserNotificationStats(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { days = 7 } = req.query;
@@ -69,7 +69,7 @@ class NotificationsController {
     }
   }
 
-  async getNotificationById(req: Request, res: Response, next: NextFunction) {
+  async getNotificationById(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { id } = req.params;
@@ -88,7 +88,7 @@ class NotificationsController {
     }
   }
 
-  async markAsRead(req: Request, res: Response, next: NextFunction) {
+  async markAsRead(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { id } = req.params;
@@ -108,7 +108,7 @@ class NotificationsController {
     }
   }
 
-  async markAllAsRead(req: Request, res: Response, next: NextFunction) {
+  async markAllAsRead(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
 
@@ -127,7 +127,7 @@ class NotificationsController {
     }
   }
 
-  async archiveNotification(req: Request, res: Response, next: NextFunction) {
+  async archiveNotification(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { id } = req.params;
@@ -147,7 +147,7 @@ class NotificationsController {
     }
   }
 
-  async deleteNotification(req: Request, res: Response, next: NextFunction) {
+  async deleteNotification(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { id } = req.params;
@@ -166,7 +166,7 @@ class NotificationsController {
     }
   }
 
-  async deleteAllNotifications(req: Request, res: Response, next: NextFunction) {
+  async deleteAllNotifications(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { olderThan } = req.query;

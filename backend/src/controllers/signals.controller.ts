@@ -3,7 +3,7 @@ import { signalsService } from '../services/signals.service';
 import { SignalType, SignalStatus } from '@prisma/client';
 
 class SignalsController {
-  async getSignals(req: Request, res: Response, next: NextFunction) {
+  async getSignals(req: Request, res: Response, _next: NextFunction) {
     try {
       const { assetId, type, status, timeframe, tags, page = 1, limit = 20 } = req.query;
 
@@ -29,7 +29,7 @@ class SignalsController {
     }
   }
 
-  async getActiveSignals(req: Request, res: Response, next: NextFunction) {
+  async getActiveSignals(req: Request, res: Response, _next: NextFunction) {
     try {
       const { assetId, limit = 20 } = req.query;
 
@@ -47,7 +47,7 @@ class SignalsController {
     }
   }
 
-  async getProviderSignals(req: Request, res: Response, next: NextFunction) {
+  async getProviderSignals(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { status } = req.query;
@@ -69,7 +69,7 @@ class SignalsController {
     }
   }
 
-  async getUserSubscriptions(req: Request, res: Response, next: NextFunction) {
+  async getUserSubscriptions(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
 
@@ -87,7 +87,7 @@ class SignalsController {
     }
   }
 
-  async getGlobalStats(req: Request, res: Response, next: NextFunction) {
+  async getGlobalStats(req: Request, res: Response, _next: NextFunction) {
     try {
       const { days = 30 } = req.query;
 
@@ -105,7 +105,7 @@ class SignalsController {
     }
   }
 
-  async getProviderPerformance(req: Request, res: Response, next: NextFunction) {
+  async getProviderPerformance(req: Request, res: Response, _next: NextFunction) {
     try {
       const { userId } = req.params;
       const { days = 30 } = req.query;
@@ -124,7 +124,7 @@ class SignalsController {
     }
   }
 
-  async getSignalById(req: Request, res: Response, next: NextFunction) {
+  async getSignalById(req: Request, res: Response, _next: NextFunction) {
     try {
       const { id } = req.params;
 
@@ -142,7 +142,7 @@ class SignalsController {
     }
   }
 
-  async createSignal(req: Request, res: Response, next: NextFunction) {
+  async createSignal(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const {
@@ -184,7 +184,7 @@ class SignalsController {
     }
   }
 
-  async updateSignal(req: Request, res: Response, next: NextFunction) {
+  async updateSignal(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { id } = req.params;
@@ -217,7 +217,7 @@ class SignalsController {
     }
   }
 
-  async closeSignal(req: Request, res: Response, next: NextFunction) {
+  async closeSignal(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { id } = req.params;
@@ -238,7 +238,7 @@ class SignalsController {
     }
   }
 
-  async deleteSignal(req: Request, res: Response, next: NextFunction) {
+  async deleteSignal(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { id } = req.params;
@@ -257,7 +257,7 @@ class SignalsController {
     }
   }
 
-  async subscribeToSignal(req: Request, res: Response, next: NextFunction) {
+  async subscribeToSignal(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { id } = req.params;
@@ -283,7 +283,7 @@ class SignalsController {
     }
   }
 
-  async unsubscribeFromSignal(req: Request, res: Response, next: NextFunction) {
+  async unsubscribeFromSignal(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { id } = req.params;
@@ -302,7 +302,7 @@ class SignalsController {
     }
   }
 
-  async updateSubscription(req: Request, res: Response, next: NextFunction) {
+  async updateSubscription(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.userId;
       const { id } = req.params;

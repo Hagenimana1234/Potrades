@@ -1,6 +1,16 @@
 import { Request } from 'express';
 import { TokenPayload } from '../utils/crypto';
 
+// Extend Express Request globally to include user and requestId
+declare global {
+  namespace Express {
+    interface Request {
+      user?: TokenPayload;
+      requestId?: string;
+    }
+  }
+}
+
 // Extend Express Request to include user
 export interface AuthenticatedRequest extends Request {
   user?: TokenPayload;

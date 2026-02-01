@@ -1,14 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 
-declare global {
-  namespace Express {
-    interface Request {
-      requestId?: string;
-    }
-  }
-}
-
 /**
  * Request ID Middleware
  * Generates unique ID for each request to enable request tracing

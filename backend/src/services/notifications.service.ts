@@ -73,7 +73,7 @@ class NotificationsService {
    * Send push notification via FCM (Firebase Cloud Messaging)
    * This is a placeholder for when FCM is configured
    */
-  private async sendFCMNotification(userId: string, notification: any) {
+  private async sendFCMNotification(userId: string, _notification: any) {
     try {
       // Check if FCM is configured
       if (!process.env.FCM_SERVER_KEY) {

@@ -68,7 +68,7 @@ app.use('/api', apiLimiter);
 
 // Request logging (development)
 if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
     logger.debug(`${req.method} ${req.path}`);
     next();
   });
@@ -82,7 +82,7 @@ app.use('/', healthRoutes);
 app.use('/api', routes);
 
 // Root endpoint
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   res.json({
     success: true,
     message: 'PoTrades API Server',

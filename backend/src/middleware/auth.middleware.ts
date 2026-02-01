@@ -9,7 +9,7 @@ import { UserRole } from '@prisma/client';
  */
 export function authenticate(
   req: AuthenticatedRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) {
   try {
@@ -34,7 +34,7 @@ export function authenticate(
  */
 export function optionalAuthenticate(
   req: AuthenticatedRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) {
   try {
@@ -57,7 +57,7 @@ export function optionalAuthenticate(
  * Require specific role(s)
  */
 export function requireRole(...roles: UserRole[]) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(new AuthenticationError('Authentication required'));
     }
@@ -84,7 +84,7 @@ export const requireAdmin = requireRole(UserRole.ADMIN);
  * Accepts role names as strings for more flexible usage
  */
 export function authorize(roles: string[]) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(new AuthenticationError('Authentication required'));
     }
@@ -108,7 +108,7 @@ export function authorize(roles: string[]) {
  */
 export async function requireActiveUser(
   req: AuthenticatedRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) {
   if (!req.user) {

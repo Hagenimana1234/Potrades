@@ -99,7 +99,7 @@ export class TradingController {
     }
   }
 
-  async getAssets(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  async getAssets(_req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const assets = await marketDataService.getActiveAssets();
 

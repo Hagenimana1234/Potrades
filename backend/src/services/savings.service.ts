@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma, SavingsPlanType, SavingsDepositStatus } from '@prisma/client';
+import { PrismaClient, Prisma, _SavingsPlanType, SavingsDepositStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { NotFoundError, ValidationError, UnauthorizedError } from '../utils/errors';
 import walletService from './wallet.service';

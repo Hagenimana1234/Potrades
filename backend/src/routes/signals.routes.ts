@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
-import { authenticate, authorize } from '../middleware/auth';
-import { validate } from '../middleware/validate';
+import { authenticate, authorize } from '../middleware/auth.middleware';
+import { validate } from '../middleware/validation.middleware';
 import signalsController from '../controllers/signals.controller';
 import { SignalType, SignalStatus, UserRole } from '@prisma/client';
 

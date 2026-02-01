@@ -1,5 +1,4 @@
-import { Queue, Worker, QueueScheduler } from 'bullmq';
-import redis from '../utils/redis';
+import { Queue, Worker } from 'bullmq';
 import tradingService from '../services/trading.service';
 import copyTradingService from '../services/copyTrading.service';
 import marketDataService from '../services/marketData.service';
@@ -20,14 +19,8 @@ export const savingsQueue = new Queue('savings', { connection });
 export const cleanupQueue = new Queue('cleanup', { connection });
 export const affiliateQueue = new Queue('affiliate', { connection });
 
-// Queue schedulers (for delayed/repeated jobs)
-const tradeSettlementScheduler = new QueueScheduler('trade-settlement', { connection });
-const copyTradeScheduler = new QueueScheduler('copy-trade', { connection });
-const marketDataScheduler = new QueueScheduler('market-data', { connection });
-const notificationScheduler = new QueueScheduler('notifications', { connection });
-const savingsScheduler = new QueueScheduler('savings', { connection });
-const cleanupScheduler = new QueueScheduler('cleanup', { connection });
-const affiliateScheduler = new QueueScheduler('affiliate', { connection });
+// Note: QueueScheduler is no longer needed in BullMQ v3+
+// Delayed and repeated jobs are handled automatically by Queue and Worker
 
 // ==================== WORKERS ====================
 

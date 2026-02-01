@@ -670,7 +670,7 @@ class SupportService {
   /**
    * Send staff reply email to user
    */
-  private async sendStaffReplyEmail(ticket: any) {
+  private async sendStaffReplyEmail(_ticket: any) {
     try {
       if (!process.env.EMAIL_ENABLED) {
         return;
@@ -697,7 +697,7 @@ class SupportService {
   /**
    * Send user reply email to assigned agent
    */
-  private async sendUserReplyEmail(ticket: any) {
+  private async sendUserReplyEmail(_ticket: any) {
     try {
       if (!process.env.EMAIL_ENABLED) {
         return;

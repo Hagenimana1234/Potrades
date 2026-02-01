@@ -5,7 +5,7 @@ import logger from '../utils/logger';
 class SettingsController {
   // ==================== USER SETTINGS ====================
 
-  async getUserSettings(req: Request, res: Response, next: NextFunction) {
+  async getUserSettings(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -24,7 +24,7 @@ class SettingsController {
     }
   }
 
-  async updateUserSettings(req: Request, res: Response, next: NextFunction) {
+  async updateUserSettings(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -44,7 +44,7 @@ class SettingsController {
     }
   }
 
-  async resetUserSettings(req: Request, res: Response, next: NextFunction) {
+  async resetUserSettings(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -66,7 +66,7 @@ class SettingsController {
 
   // ==================== NOTIFICATIONS ====================
 
-  async getNotificationPreferences(req: Request, res: Response, next: NextFunction) {
+  async getNotificationPreferences(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -85,7 +85,7 @@ class SettingsController {
     }
   }
 
-  async updateNotificationPreferences(req: Request, res: Response, next: NextFunction) {
+  async updateNotificationPreferences(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 
@@ -107,7 +107,7 @@ class SettingsController {
 
   // ==================== SECURITY ====================
 
-  async getSecuritySettings(req: Request, res: Response, next: NextFunction) {
+  async getSecuritySettings(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
 

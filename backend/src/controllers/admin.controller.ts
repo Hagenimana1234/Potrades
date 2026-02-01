@@ -137,7 +137,7 @@ export class AdminController {
     }
   }
 
-  async getPlatformStats(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  async getPlatformStats(_req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const [totalUsers, activeUsers, totalTrades, totalVolume, openTrades] = await Promise.all([
         prisma.user.count(),
@@ -209,7 +209,7 @@ export class AdminController {
   }
 
   // Copy Trading Management
-  async getPendingCopyTraders(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  async getPendingCopyTraders(_req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const pending = await prisma.copyTrader.findMany({
         where: { status: 'PENDING' },
@@ -307,7 +307,7 @@ export class AdminController {
     }
   }
 
-  async getPendingCommissions(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  async getPendingCommissions(_req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const commissions = await affiliateService.adminGetPendingCommissions();
       res.json({ success: true, data: commissions });
@@ -365,7 +365,7 @@ export class AdminController {
   }
 
   // System Settings
-  async getSystemSettings(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  async getSystemSettings(_req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const settings = await prisma.systemSetting.findMany({
         orderBy: { category: 'asc' },
@@ -438,7 +438,7 @@ export class AdminController {
    * Get all OTC pricing configurations
    * Critical for monitoring and managing the Price Orchestration Layer
    */
-  async getOTCPricingConfigs(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  async getOTCPricingConfigs(_req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const configs = await priceOrchestrationService.getAllPricingConfigs();
       res.json({ success: true, data: configs });

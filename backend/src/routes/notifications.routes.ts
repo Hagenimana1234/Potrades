@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { param, query, body } from 'express-validator';
-import { authenticate } from '../middleware/auth';
-import { validate } from '../middleware/validate';
+import { param, query } from 'express-validator';
+import { authenticate } from '../middleware/auth.middleware';
+import { validate } from '../middleware/validation.middleware';
 import notificationsController from '../controllers/notifications.controller';
 import { NotificationType, NotificationStatus } from '@prisma/client';
 

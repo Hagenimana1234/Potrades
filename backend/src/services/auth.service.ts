@@ -5,7 +5,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
-  generateRandomToken,
+  _generateRandomToken,
   generateReferralCode,
 } from '../utils/crypto';
 import {
@@ -166,12 +166,14 @@ export class AuthService {
     // Generate tokens
     const accessToken = generateAccessToken({
       userId: user.id,
+      id: user.id, // Include id for backward compatibility
       email: user.email,
       role: user.role,
     });
 
     const refreshToken = generateRefreshToken({
       userId: user.id,
+      id: user.id, // Include id for backward compatibility
       email: user.email,
       role: user.role,
     });
@@ -236,6 +238,7 @@ export class AuthService {
       // Generate new access token
       const accessToken = generateAccessToken({
         userId: session.user.id,
+        id: session.user.id, // Include id for backward compatibility
         email: session.user.email,
         role: session.user.role,
       });
