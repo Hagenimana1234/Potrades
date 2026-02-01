@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { EventEmitter } from 'events';
 import { Decimal } from 'decimal.js';
 import axios from 'axios';
+import WebSocket from 'ws';
 import { priceOrchestrationService } from './priceOrchestration.service';
 
 export interface PriceUpdate {
@@ -31,6 +32,7 @@ class MarketDataService extends EventEmitter {
 
   // External API configuration
   private readonly BINANCE_BASE_URL = 'https://api.binance.com/api/v3';
+  private readonly BINANCE_WS_URL = 'wss://stream.binance.com:9443/ws';
   private readonly TWELVEDATA_BASE_URL = 'https://api.twelvedata.com';
   private readonly TWELVEDATA_API_KEY = process.env.TWELVEDATA_API_KEY || '';
 
@@ -42,6 +44,12 @@ class MarketDataService extends EventEmitter {
 
   // Seed price cache
   private seedPriceCache: Map<string, { price: number; timestamp: number }> = new Map();
+
+  // WebSocket connections for real-time data
+  private binanceWebSockets: Map<string, WebSocket> = new Map();
+  private wsReconnectTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private readonly WS_RECONNECT_DELAY = 5000; // 5 seconds
+  private readonly WS_PING_INTERVAL = 30000; // 30 seconds
 
   constructor() {
     super();
@@ -65,6 +73,11 @@ class MarketDataService extends EventEmitter {
     }
 
     logger.info(`Starting price stream for ${asset.symbol}`);
+
+    // Connect to Binance WebSocket for live prices (crypto only)
+    if (asset.type === 'CRYPTO') {
+      this.connectBinanceWebSocket(asset.symbol, assetId);
+    }
 
     // Get or generate initial price
     let currentPrice = await this.getCurrentPrice(assetId);
@@ -112,6 +125,7 @@ class MarketDataService extends EventEmitter {
       clearInterval(interval);
       this.priceIntervals.delete(assetId);
       this.currentPrices.delete(assetId);
+      this.disconnectBinanceWebSocket(assetId);
       logger.info(`Stopped price stream for asset ${assetId}`);
     }
   }
@@ -335,6 +349,202 @@ class MarketDataService extends EventEmitter {
   }
 
   /**
+   * ==================== BINANCE WEBSOCKET FOR LIVE PRICES ====================
+   * Real-time price streaming from Binance for crypto assets
+   */
+
+  /**
+   * Connect to Binance WebSocket for a crypto symbol
+   */
+  private connectBinanceWebSocket(symbol: string, assetId: string): void {
+    // Convert symbol format: BTC/USD -> btcusdt@trade
+    const binanceSymbol = symbol.replace('/', '').toLowerCase() + 't@trade';
+    const wsUrl = `${this.BINANCE_WS_URL}/${binanceSymbol}`;
+
+    logger.info(`Connecting to Binance WebSocket for ${symbol}`);
+
+    const ws = new WebSocket(wsUrl);
+
+    ws.on('open', () => {
+      logger.info(`Binance WebSocket connected: ${symbol}`);
+
+      // Set up ping/pong to keep connection alive
+      const pingInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.ping();
+        } else {
+          clearInterval(pingInterval);
+        }
+      }, this.WS_PING_INTERVAL);
+    });
+
+    ws.on('message', (data: Buffer) => {
+      try {
+        const message = JSON.parse(data.toString());
+
+        // Binance trade stream format: { p: "price", q: "quantity", ... }
+        if (message.p) {
+          const price = parseFloat(message.p);
+
+          // Update seed price cache
+          const cacheKey = `seed:${symbol}`;
+          this.seedPriceCache.set(cacheKey, {
+            price,
+            timestamp: Date.now(),
+          });
+
+          logger.debug(`Binance WebSocket price update: ${symbol} = ${price}`);
+        }
+      } catch (error) {
+        logger.error(`Error parsing Binance WebSocket message for ${symbol}:`, error);
+      }
+    });
+
+    ws.on('error', (error) => {
+      logger.error(`Binance WebSocket error for ${symbol}:`, error);
+    });
+
+    ws.on('close', () => {
+      logger.warn(`Binance WebSocket closed for ${symbol}, scheduling reconnect...`);
+      this.scheduleWebSocketReconnect(symbol, assetId);
+    });
+
+    this.binanceWebSockets.set(assetId, ws);
+  }
+
+  /**
+   * Schedule WebSocket reconnection with exponential backoff
+   */
+  private scheduleWebSocketReconnect(symbol: string, assetId: string): void {
+    // Clear existing timeout if any
+    const existingTimeout = this.wsReconnectTimeouts.get(assetId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Schedule reconnect
+    const timeout = setTimeout(() => {
+      logger.info(`Reconnecting Binance WebSocket for ${symbol}`);
+      this.connectBinanceWebSocket(symbol, assetId);
+      this.wsReconnectTimeouts.delete(assetId);
+    }, this.WS_RECONNECT_DELAY);
+
+    this.wsReconnectTimeouts.set(assetId, timeout);
+  }
+
+  /**
+   * Disconnect Binance WebSocket for an asset
+   */
+  private disconnectBinanceWebSocket(assetId: string): void {
+    const ws = this.binanceWebSockets.get(assetId);
+    if (ws) {
+      ws.close();
+      this.binanceWebSockets.delete(assetId);
+    }
+
+    const timeout = this.wsReconnectTimeouts.get(assetId);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.wsReconnectTimeouts.delete(assetId);
+    }
+  }
+
+  /**
+   * ==================== HISTORICAL CANDLES FROM EXTERNAL APIS ====================
+   * Fetch historical candles from Binance (crypto) and Twelve Data (forex)
+   */
+
+  /**
+   * Get historical candles from Binance for crypto assets
+   */
+  private async getBinanceHistoricalCandles(
+    symbol: string,
+    interval: string = '1m',
+    limit: number = 100
+  ): Promise<Candle[]> {
+    try {
+      await this.rateLimitBinance();
+
+      // Convert symbol format: BTC/USD -> BTCUSDT
+      const binanceSymbol = symbol.replace('/', '') + 'T';
+
+      const response = await axios.get(`${this.BINANCE_BASE_URL}/klines`, {
+        params: {
+          symbol: binanceSymbol,
+          interval, // 1m, 5m, 15m, 1h, 4h, 1d
+          limit,
+        },
+        timeout: 5000,
+      });
+
+      // Binance klines format: [timestamp, open, high, low, close, volume, ...]
+      const candles: Candle[] = response.data.map((kline: any[]) => ({
+        timestamp: new Date(kline[0]),
+        open: parseFloat(kline[1]),
+        high: parseFloat(kline[2]),
+        low: parseFloat(kline[3]),
+        close: parseFloat(kline[4]),
+        volume: parseFloat(kline[5]),
+      }));
+
+      logger.debug(`Fetched ${candles.length} historical candles from Binance for ${symbol}`);
+      return candles;
+    } catch (error: any) {
+      logger.error(`Failed to fetch Binance historical candles for ${symbol}:`, error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Get historical candles from Twelve Data for forex assets
+   */
+  private async getTwelveDataHistoricalCandles(
+    symbol: string,
+    interval: string = '1min',
+    limit: number = 100
+  ): Promise<Candle[]> {
+    if (!this.TWELVEDATA_API_KEY) {
+      logger.warn('Twelve Data API key not configured');
+      return [];
+    }
+
+    try {
+      await this.rateLimitTwelveData();
+
+      const response = await axios.get(`${this.TWELVEDATA_BASE_URL}/time_series`, {
+        params: {
+          symbol: symbol.replace('/', ''),
+          interval, // 1min, 5min, 15min, 1h, 4h, 1day
+          outputsize: limit,
+          apikey: this.TWELVEDATA_API_KEY,
+        },
+        timeout: 5000,
+      });
+
+      if (!response.data.values || response.data.values.length === 0) {
+        logger.warn(`No historical data from Twelve Data for ${symbol}`);
+        return [];
+      }
+
+      // Twelve Data format: { datetime, open, high, low, close, volume }
+      const candles: Candle[] = response.data.values.map((item: any) => ({
+        timestamp: new Date(item.datetime),
+        open: parseFloat(item.open),
+        high: parseFloat(item.high),
+        low: parseFloat(item.low),
+        close: parseFloat(item.close),
+        volume: parseFloat(item.volume || '0'),
+      }));
+
+      logger.debug(`Fetched ${candles.length} historical candles from Twelve Data for ${symbol}`);
+      return candles.reverse(); // Twelve Data returns newest first, reverse to oldest first
+    } catch (error: any) {
+      logger.error(`Failed to fetch Twelve Data historical candles for ${symbol}:`, error.message);
+      return [];
+    }
+  }
+
+  /**
    * Get volatility parameter for asset
    */
   private getVolatilityForSymbol(symbol: string): number {
@@ -396,12 +606,44 @@ class MarketDataService extends EventEmitter {
 
   /**
    * Get price history (candles)
+   * Attempts to fetch from external APIs first, falls back to database
    */
   async getPriceHistory(
     assetId: string,
     interval: string = '1m',
     limit: number = 100
   ): Promise<Candle[]> {
+    // Get asset to determine type
+    const asset = await prisma.asset.findUnique({
+      where: { id: assetId },
+      select: { symbol: true, type: true },
+    });
+
+    if (!asset) {
+      logger.warn(`Asset ${assetId} not found`);
+      return [];
+    }
+
+    let candles: Candle[] = [];
+
+    // Try to fetch from external APIs first
+    if (asset.type === 'CRYPTO') {
+      candles = await this.getBinanceHistoricalCandles(asset.symbol, interval, limit);
+    } else if (asset.type === 'FOREX') {
+      // Convert interval format: 1m -> 1min for Twelve Data
+      const tdInterval = interval.replace('m', 'min').replace('h', 'h').replace('d', 'day');
+      candles = await this.getTwelveDataHistoricalCandles(asset.symbol, tdInterval, limit);
+    }
+
+    // If external API returned data, return it
+    if (candles.length > 0) {
+      logger.debug(`Returning ${candles.length} candles from external API for ${asset.symbol}`);
+      return candles;
+    }
+
+    // Fallback: Generate from database prices
+    logger.debug(`Falling back to database prices for ${asset.symbol}`);
+
     // Get raw price data
     const prices = await prisma.price.findMany({
       where: { assetId },
@@ -415,7 +657,7 @@ class MarketDataService extends EventEmitter {
 
     // Aggregate into candles based on interval
     const intervalMs = this.parseIntervalToMs(interval);
-    const candles: Candle[] = [];
+    candles = [];
 
     let currentCandle: any = null;
     let candleStartTime: number = 0;
