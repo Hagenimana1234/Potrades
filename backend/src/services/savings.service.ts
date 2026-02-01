@@ -1,6 +1,6 @@
 import { PrismaClient, Prisma, SavingsPlanType, SavingsDepositStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { NotFoundError, ValidationError } from '../utils/errors';
+import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
 import walletService from './wallet.service';
 
 const prisma = new PrismaClient();

@@ -79,7 +79,7 @@ export function errorHandler(
   }
 
   // Default error
-  res.status(500).json({
+  return res.status(500).json({
     success: false,
     error: process.env.NODE_ENV === 'production'
       ? 'Internal server error'
@@ -92,7 +92,7 @@ export function notFoundHandler(
   res: Response,
   _next: NextFunction
 ) {
-  res.status(404).json({
+  return res.status(404).json({
     success: false,
     error: 'Route not found',
   });

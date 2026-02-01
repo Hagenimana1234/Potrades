@@ -94,13 +94,13 @@ class FinanceController {
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         data: deposit,
       });
     } catch (error: any) {
       logger.error('Get deposit error:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error.message || 'Failed to fetch deposit',
       });
@@ -179,13 +179,13 @@ class FinanceController {
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         data: withdrawal,
       });
     } catch (error: any) {
       logger.error('Get withdrawal error:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error.message || 'Failed to fetch withdrawal',
       });

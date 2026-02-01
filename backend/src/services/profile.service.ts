@@ -1,7 +1,7 @@
 import prisma from '../utils/database';
 import logger from '../utils/logger';
 import { hashPassword, verifyPassword } from '../utils/crypto';
-import { NotFoundError, ValidationError, UnauthorizedError } from '../utils/errors';
+import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
 
 /**
  * Profile Service
@@ -314,7 +314,7 @@ class ProfileService {
     // Verify current password
     const isValid = await verifyPassword(currentPassword, user.passwordHash);
     if (!isValid) {
-      throw new UnauthorizedError('Current password is incorrect');
+      throw new AuthorizationError('Current password is incorrect');
     }
 
     // Validate new password

@@ -471,9 +471,9 @@ export class AdminController {
         return res.status(404).json({ success: false, message: 'Pricing config not found' });
       }
 
-      res.json({ success: true, data: config });
+      return res.json({ success: true, data: config });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -632,7 +632,7 @@ export class AdminController {
         where: { assetId },
       });
 
-      res.json({
+      return res.json({
         success: true,
         data: {
           seedPrice: Number(seedPrice),
@@ -648,7 +648,7 @@ export class AdminController {
         },
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 }

@@ -54,12 +54,12 @@ export class AuthController {
 
       const result = await authService.refreshAccessToken(refreshToken);
 
-      res.json({
+      return res.json({
         success: true,
         data: result,
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
