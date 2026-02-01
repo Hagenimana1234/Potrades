@@ -1,7 +1,7 @@
-import { prisma } from '../lib/prisma';
+import prisma from '../utils/database';
 import { SignalType, SignalStatus, Prisma } from '@prisma/client';
 import { ValidationError, NotFoundError } from '../utils/errors';
-import { logger } from '../utils/logger';
+import logger from '../utils/logger';
 
 /**
  * Signals Service

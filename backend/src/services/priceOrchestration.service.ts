@@ -1,6 +1,6 @@
-import { prisma } from '../lib/prisma';
+import prisma from '../utils/database';
 import { Prisma } from '@prisma/client';
-import { logger } from '../utils/logger';
+import logger from '../utils/logger';
 
 /**
  * PRICE ORCHESTRATION LAYER (POL)

@@ -8,7 +8,6 @@ import logger from '../utils/logger';
 
 export class WebSocketServer {
   private io: SocketIOServer;
-  private redisInitialized: boolean = false;
 
   constructor(httpServer: HTTPServer) {
     this.io = new SocketIOServer(httpServer, {
@@ -42,8 +41,8 @@ export class WebSocketServer {
       const subClient = pubClient.duplicate();
 
       // Handle Redis errors
-      pubClient.on('error', (err) => logger.error('Redis Pub Client Error:', err));
-      subClient.on('error', (err) => logger.error('Redis Sub Client Error:', err));
+      pubClient.on('error', (err: any) => logger.error('Redis Pub Client Error:', err));
+      subClient.on('error', (err: any) => logger.error('Redis Sub Client Error:', err));
 
       // Connect clients
       await Promise.all([pubClient.connect(), subClient.connect()]);
@@ -52,7 +51,6 @@ export class WebSocketServer {
       this.io.adapter(createAdapter(pubClient, subClient));
 
       logger.info('✓ WebSocket clustering enabled with Redis adapter');
-      this.redisInitialized = true;
     } catch (error) {
       logger.warn('⚠ Redis adapter not initialized, running in single-instance mode');
       logger.warn('For production with multiple instances, ensure Redis is available');

@@ -1,5 +1,5 @@
-import { prisma } from '../lib/prisma';
-import { logger } from '../utils/logger';
+import prisma from '../utils/database';
+import logger from '../utils/logger';
 import { EventEmitter } from 'events';
 import { Decimal } from 'decimal.js';
 import axios from 'axios';

@@ -1,7 +1,7 @@
-import { prisma } from '../lib/prisma';
+import prisma from '../utils/database';
 import { NotificationType, NotificationStatus, Prisma } from '@prisma/client';
 import { NotFoundError } from '../utils/errors';
-import { logger } from '../utils/logger';
+import logger from '../utils/logger';
 
 /**
  * Notifications Service

@@ -1,7 +1,7 @@
-import { prisma } from '../lib/prisma';
+import prisma from '../utils/database';
 import { TicketStatus, TicketPriority, TicketCategory, Prisma } from '@prisma/client';
 import { NotFoundError, ValidationError } from '../utils/errors';
-import { logger } from '../utils/logger';
+import logger from '../utils/logger';
 
 /**
  * Support Service

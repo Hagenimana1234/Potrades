@@ -2,7 +2,9 @@ import { PrismaClient } from '@prisma/client';
 import logger from './logger';
 
 // Production-grade connection pool configuration
-const connectionPoolConfig = {
+// Reserved for future use when manual pool management is needed
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _connectionPoolConfig = {
   connectionLimit: parseInt(process.env.DATABASE_POOL_MAX || '10'),
   pool: {
     min: parseInt(process.env.DATABASE_POOL_MIN || '2'),

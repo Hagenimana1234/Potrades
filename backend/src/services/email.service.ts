@@ -1,5 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
-import { logger } from '../utils/logger';
+import logger from '../utils/logger';
 
 /**
  * EMAIL SERVICE
