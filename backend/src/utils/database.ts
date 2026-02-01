@@ -36,13 +36,23 @@ const prisma = new PrismaClient({
   },
 });
 
-// Log queries in development
-if (process.env.NODE_ENV === 'development') {
-  prisma.$on('query', (e: any) => {
+// Log queries in development and monitor slow queries in all environments
+prisma.$on('query', (e: any) => {
+  // Log all queries in development
+  if (process.env.NODE_ENV === 'development') {
     logger.debug('Query: ' + e.query);
     logger.debug('Duration: ' + e.duration + 'ms');
-  });
-}
+  }
+
+  // Alert on slow queries (> 1 second) in all environments
+  if (e.duration > 1000) {
+    logger.warn('Slow query detected:', {
+      query: e.query,
+      duration: `${e.duration}ms`,
+      params: e.params,
+    });
+  }
+});
 
 prisma.$on('error', (e: any) => {
   logger.error('Prisma Error:', e);
@@ -77,5 +87,16 @@ process.on('SIGTERM', async () => {
   await disconnectDatabase();
   process.exit(0);
 });
+
+/**
+ * Transaction timeout configuration
+ * Protects against long-running transactions and deadlocks
+ * Use this when calling prisma.$transaction()
+ */
+export const TRANSACTION_OPTIONS = {
+  maxWait: 5000,  // Wait max 5s to acquire connection from pool
+  timeout: 10000, // Abort transaction if it takes longer than 10s
+  isolationLevel: 'ReadCommitted' as const, // Prevent dirty reads
+};
 
 export default prisma;

@@ -12,8 +12,10 @@ import logger from './utils/logger';
 import { connectDatabase } from './utils/database';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { apiLimiter } from './middleware/rateLimiter.middleware';
+import { requestIdMiddleware } from './middleware/requestId.middleware';
 import sessionMiddleware from './middleware/session.middleware';
 import routes from './routes';
+import healthRoutes from './routes/health.routes';
 import WebSocketServer from './websocket/server';
 import { initializeJobs } from './jobs';
 import marketDataService from './services/marketData.service';
@@ -52,6 +54,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+// Request ID tracking (must be early in middleware chain)
+app.use(requestIdMiddleware);
+
 // Session management with Redis (for load balancer support)
 app.use(sessionMiddleware);
 
@@ -70,6 +75,9 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // ==================== ROUTES ====================
+
+// Health checks (no rate limiting, no auth) - for load balancers
+app.use('/', healthRoutes);
 
 app.use('/api', routes);
 
@@ -120,8 +128,9 @@ async function bootstrap() {
       logger.info(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`✓ API URL: http://localhost:${PORT}/api`);
       logger.info(`✓ WebSocket URL: ws://localhost:${PORT}`);
-      logger.info(`✓ Health check: http://localhost:${PORT}/api/health`);
-      logger.info(`✓ Readiness check: http://localhost:${PORT}/api/ready`);
+      logger.info(`✓ Health check: http://localhost:${PORT}/health`);
+      logger.info(`✓ Readiness check: http://localhost:${PORT}/ready`);
+      logger.info(`✓ Liveness check: http://localhost:${PORT}/live`);
       logger.info('='.repeat(50));
       logger.info('🚀 PoTrades Backend is ready for millions of users!');
       logger.info('   Horizontal scaling: ✓ Enabled');

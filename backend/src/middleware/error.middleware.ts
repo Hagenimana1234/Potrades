@@ -10,13 +10,15 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ) {
-  // Log error
-  logger.error('Error:', {
+  // Log error with request context
+  logger.error('Request error:', {
+    requestId: req.requestId,
     message: err.message,
     stack: err.stack,
     url: req.url,
     method: req.method,
     ip: req.ip,
+    userId: (req as any).user?.userId,
   });
 
   // Handle known AppError
