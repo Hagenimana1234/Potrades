@@ -6,9 +6,9 @@ import {
   NotFoundError,
   ValidationError,
   ConflictError,
-  InsufficientBalanceError,
+  
 } from '../utils/errors';
-import { CopyTraderStatus, CopyRelationshipStatus, WalletType } from '@prisma/client';
+import { CopyTraderStatus, CopyRelationshipStatus } from '@prisma/client';
 import { Decimal } from 'decimal.js';
 
 export class CopyTradingService {

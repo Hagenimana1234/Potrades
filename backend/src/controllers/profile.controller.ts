@@ -151,7 +151,7 @@ class ProfileController {
   async revokeAllSessions(req: Request, res: Response, _next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const currentSessionId = req.sessionId;
+      const currentSessionId = req.sessionID;
 
       const result = await profileService.revokeAllSessions(userId, currentSessionId);
 

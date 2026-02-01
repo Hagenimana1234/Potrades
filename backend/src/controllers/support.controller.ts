@@ -261,7 +261,7 @@ class SupportController {
       const userId = req.user!.userId;
       const userRole = req.user!.role;
 
-      const isStaff = [UserRole.ADMIN, UserRole.SUPPORT].includes(userRole);
+      const isStaff = userRole === UserRole.ADMIN || userRole === UserRole.SUPPORT;
 
       const ticketMessage = await supportService.addMessage({
         ticketId: id,

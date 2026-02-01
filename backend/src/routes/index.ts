@@ -3,7 +3,7 @@ import authController from '../controllers/auth.controller';
 import tradingController from '../controllers/trading.controller';
 import adminController from '../controllers/admin.controller';
 import { authenticate, requireAdmin } from '../middleware/auth.middleware';
-import { strictLimiter, tradeLimiter } from '../middleware/rateLimiter.middleware';
+import { strictLimiter } from '../middleware/rateLimiter.middleware';
 import healthRoutes from './health.routes';
 import financeRoutes from './finance.routes';
 import affiliateRoutes from './affiliate.routes';

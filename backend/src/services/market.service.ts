@@ -1,5 +1,5 @@
 import { PrismaClient, AssetType, Prisma } from '@prisma/client';
-import { NotFoundError, ValidationError } from '../utils/errors';
+import { NotFoundError } from '../utils/errors';
 
 const prisma = new PrismaClient();
 

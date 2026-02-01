@@ -28,7 +28,8 @@ class MarketDataService extends EventEmitter {
   private priceIntervals: Map<string, NodeJS.Timeout> = new Map();
   private currentPrices: Map<string, number> = new Map();
   private readonly PRICE_UPDATE_INTERVAL = 1000; // 1 second
-  private readonly CACHE_TTL = 60; // 1 minute
+  // Cache TTL for future use
+  // private readonly CACHE_TTL = 60; // 1 minute
 
   // External API configuration
   private readonly BINANCE_BASE_URL = 'https://api.binance.com/api/v3';
@@ -85,12 +86,15 @@ class MarketDataService extends EventEmitter {
       currentPrice = await this.generateInitialPrice(asset.symbol);
     }
 
-    this.currentPrices.set(assetId, currentPrice);
+    // Ensure currentPrice is set
+    const initialPrice: number = currentPrice;
+    this.currentPrices.set(assetId, initialPrice);
 
     // Start price updates
     const interval = setInterval(async () => {
       try {
-        const newPrice = await this.generateNextPrice(assetId, asset.symbol, currentPrice);
+        const latestPrice = this.currentPrices.get(assetId) ?? initialPrice;
+        const newPrice = await this.generateNextPrice(assetId, asset.symbol, latestPrice);
         this.currentPrices.set(assetId, newPrice);
 
         // Save to database

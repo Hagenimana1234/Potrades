@@ -1,7 +1,6 @@
 import { Queue, Worker } from 'bullmq';
 import tradingService from '../services/trading.service';
 import copyTradingService from '../services/copyTrading.service';
-import marketDataService from '../services/marketData.service';
 import { emailService } from '../services/email.service';
 import logger from '../utils/logger';
 
@@ -85,7 +84,7 @@ const copyTradeWorker = new Worker(
 const marketDataWorker = new Worker(
   'market-data',
   async (job) => {
-    const { action, data } = job.data;
+    const { action } = job.data;
 
     try {
       switch (action) {
@@ -230,7 +229,7 @@ const notificationWorker = new Worker(
 const savingsWorker = new Worker(
   'savings',
   async (job) => {
-    const { action, savingsPlanId, userId } = job.data;
+    const { action, savingsPlanId, userId: _userId } = job.data;
 
     try {
       switch (action) {
@@ -313,7 +312,7 @@ const cleanupWorker = new Worker(
 const affiliateWorker = new Worker(
   'affiliate',
   async (job) => {
-    const { action, affiliateId, data } = job.data;
+    const { action, affiliateId, data: _data } = job.data;
 
     try {
       switch (action) {
@@ -370,27 +369,28 @@ export async function startPeriodicSettlementCheck() {
 /**
  * Worker for periodic settlement check
  */
-const settlementCheckWorker = new Worker(
-  'trade-settlement',
-  async (job) => {
-    if (job.name === 'check-expired-trades') {
-      try {
-        const expiredTrades = await tradingService.getTradesForSettlement();
-
-        if (expiredTrades.length > 0) {
-          logger.info(`Found ${expiredTrades.length} trades to settle`);
-
-          for (const trade of expiredTrades) {
-            await tradeSettlementQueue.add('settle-trade', { tradeId: trade.id });
-          }
-        }
-      } catch (error) {
-        logger.error('Error checking for expired trades:', error);
-      }
-    }
-  },
-  { connection }
-);
+// Settlement check worker not yet implemented
+// const settlementCheckWorker = new Worker(
+//   'trade-settlement',
+//   async (job) => {
+//     if (job.name === 'check-expired-trades') {
+//       try {
+//         const expiredTrades = await tradingService.getTradesForSettlement();
+//
+//         if (expiredTrades.length > 0) {
+//           logger.info(`Found ${expiredTrades.length} trades to settle`);
+//
+//           for (const trade of expiredTrades) {
+//             await tradeSettlementQueue.add('settle-trade', { tradeId: trade.id });
+//           }
+//         }
+//       } catch (error) {
+//         logger.error('Error checking for expired trades:', error);
+//       }
+//     }
+//   },
+//   { connection }
+// );
 
 // ==================== JOB HELPERS ====================
 

@@ -4,19 +4,20 @@ import logger from './logger';
 // Production-grade connection pool configuration
 // Reserved for future use when manual pool management is needed
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _connectionPoolConfig = {
-  connectionLimit: parseInt(process.env.DATABASE_POOL_MAX || '10'),
-  pool: {
-    min: parseInt(process.env.DATABASE_POOL_MIN || '2'),
-    max: parseInt(process.env.DATABASE_POOL_MAX || '10'),
-    acquireTimeoutMillis: parseInt(process.env.DATABASE_POOL_TIMEOUT || '60000'),
-    createTimeoutMillis: 30000,
-    destroyTimeoutMillis: 5000,
-    idleTimeoutMillis: 60000,
-    reapIntervalMillis: 1000,
-    createRetryIntervalMillis: 100,
-  },
-};
+// Connection pool config for future use
+// const connectionPoolConfig = {
+//   connectionLimit: parseInt(process.env.DATABASE_POOL_MAX || '10'),
+//   pool: {
+//     min: parseInt(process.env.DATABASE_POOL_MIN || '2'),
+//     max: parseInt(process.env.DATABASE_POOL_MAX || '10'),
+//     acquireTimeoutMillis: parseInt(process.env.DATABASE_POOL_TIMEOUT || '60000'),
+//     createTimeoutMillis: 30000,
+//     destroyTimeoutMillis: 5000,
+//     idleTimeoutMillis: 60000,
+//     reapIntervalMillis: 1000,
+//     createRetryIntervalMillis: 100,
+//   },
+// };
 
 const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development'

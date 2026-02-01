@@ -65,7 +65,7 @@ class EmailService {
         return;
       }
 
-      this.transporter = nodemailer.createTransporter(smtpConfig);
+      this.transporter = nodemailer.createTransport(smtpConfig);
       this.isConfigured = true;
 
       // Verify connection

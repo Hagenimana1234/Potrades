@@ -14,6 +14,7 @@ export class TradingController {
       const trade = await tradingService.placeTrade({
         userId,
         ...tradeData,
+        walletType: tradeData.walletType || 'DEMO', // Ensure walletType is defined
       });
 
       // Trigger copy trades if user is a copy trader

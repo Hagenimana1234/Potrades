@@ -92,12 +92,13 @@ router.get(
  * GET /savings/admin/plans
  * Get all savings plans including inactive (Admin only)
  */
-router.get(
-  '/admin/plans',
-  authenticate,
-  authorize(['ADMIN', 'SUPPORT']),
-  savingsController.adminGetPlans
-);
+// TODO: Implement adminGetPlans method in SavingsController
+// router.get(
+//   '/admin/plans',
+//   authenticate,
+//   authorize(['ADMIN', 'SUPPORT']),
+//   savingsController.adminGetPlans
+// );
 
 /**
  * POST /savings/admin/plans

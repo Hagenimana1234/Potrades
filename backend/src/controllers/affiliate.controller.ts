@@ -405,12 +405,12 @@ class AffiliateController {
     try {
       const payoutId = req.params.payoutId;
       const adminId = req.user!.id;
-      const { status, txHash, notes } = req.body;
+      const { status, txHash, rejectionReason } = req.body;
 
       const payout = await affiliateService.processPayout(payoutId, adminId, {
         status,
         txHash,
-        notes,
+        rejectionReason,
       });
 
       res.json({

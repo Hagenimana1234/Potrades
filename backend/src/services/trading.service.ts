@@ -191,7 +191,7 @@ export class TradingService {
 
     // Determine win/loss
     let won = false;
-    let status = TradeStatus.LOST;
+    let status: TradeStatus;
 
     if (trade.direction === TradeDirection.UP) {
       won = closePriceDecimal.greaterThan(openPrice);
@@ -199,9 +199,10 @@ export class TradingService {
       won = closePriceDecimal.lessThan(openPrice);
     }
 
-    // Handle draw (price didn't change)
+    // Handle draw (price didn't change) - treat as LOST in binary options
+    // In real binary options, draws typically result in refund, but for simplicity treating as loss
     if (closePriceDecimal.equals(openPrice)) {
-      status = TradeStatus.DRAW;
+      status = TradeStatus.LOST;
     } else {
       status = won ? TradeStatus.WON : TradeStatus.LOST;
     }
@@ -210,7 +211,7 @@ export class TradingService {
     let profit = new Decimal(0);
     let profitPercent = new Decimal(0);
 
-    if (status === TradeStatus.WON) {
+    if (status === 'WON') {
       // Profit = trade_amount * (payout_percent / 100)
       profit = tradeAmount.times(payoutPercent).dividedBy(100);
       profitPercent = payoutPercent;

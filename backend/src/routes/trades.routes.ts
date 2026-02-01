@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { body, param, query } from 'express-validator';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
@@ -40,7 +40,7 @@ router.post(
   '/:tradeId/close',
   [param('tradeId').isString()],
   validate,
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
       const { tradeId } = req.params;
@@ -145,7 +145,7 @@ router.put(
     body('cooldownSeconds').optional().isInt({ min: 0 }),
   ],
   validate,
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
       const {

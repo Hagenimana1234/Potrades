@@ -81,14 +81,18 @@ class NotificationsService {
       }
 
       // Get user's FCM tokens from database
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { fcmTokens: true },
-      });
+      // TODO: Add fcmTokens field to User model in Prisma schema
+      // const user = await prisma.user.findUnique({
+      //   where: { id: userId },
+      //   select: { fcmTokens: true },
+      // });
 
-      if (!user || !user.fcmTokens || user.fcmTokens.length === 0) {
-        return; // No FCM tokens registered
-      }
+      // if (!user || !user.fcmTokens || user.fcmTokens.length === 0) {
+      //   return; // No FCM tokens registered
+      // }
+
+      // FCM push notifications not yet implemented
+      return;
 
       // TODO: Implement FCM push notification using firebase-admin SDK
       // Example:

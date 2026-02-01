@@ -5,7 +5,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
-  generateRandomToken,
+  
   generateReferralCode,
 } from '../utils/crypto';
 import {
@@ -208,7 +208,7 @@ export class AuthService {
 
   async refreshAccessToken(refreshToken: string) {
     try {
-      const payload = verifyRefreshToken(refreshToken);
+      verifyRefreshToken(refreshToken);
 
       // Check if session exists
       const session = await prisma.session.findUnique({

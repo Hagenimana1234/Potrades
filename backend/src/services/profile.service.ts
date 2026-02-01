@@ -2,6 +2,7 @@ import prisma from '../utils/database';
 import logger from '../utils/logger';
 import { hashPassword, verifyPassword } from '../utils/crypto';
 import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
+import { KYCStatus } from '@prisma/client';
 
 /**
  * Profile Service
@@ -55,17 +56,17 @@ class ProfileService {
         lastName: true,
         phone: true,
         country: true,
-        city: true,
-        address: true,
+        // city: true, // TODO: Add city field to User model in Prisma schema
+        // address: true, // TODO: Add address field to User model
         dateOfBirth: true,
-        profilePicture: true,
+        // profilePicture: true, // TODO: Add profilePicture field to User model
         role: true,
         status: true,
         emailVerified: true,
         kycStatus: true,
         kycDocuments: true,
-        kycVerifiedAt: true,
-        kycRejectionReason: true,
+        // kycVerifiedAt: true, // TODO: Add kycVerifiedAt field to User model
+        // kycRejectionReason: true, // TODO: Add kycRejectionReason field to User model
         twoFactorEnabled: true,
         referralCode: true,
         referredById: true,
@@ -144,10 +145,10 @@ class ProfileService {
         lastName: true,
         phone: true,
         country: true,
-        city: true,
-        address: true,
+        // city: true, // TODO: Add city field to User model in Prisma schema
+        // address: true, // TODO: Add address field to User model
         dateOfBirth: true,
-        profilePicture: true,
+        // profilePicture: true, // TODO: Add profilePicture field to User model
       },
     });
 
@@ -169,8 +170,8 @@ class ProfileService {
       throw new NotFoundError('User not found');
     }
 
-    if (user.kycStatus === 'VERIFIED') {
-      throw new ValidationError('KYC already verified');
+    if (user.kycStatus === KYCStatus.APPROVED) {
+      throw new ValidationError('KYC already approved');
     }
 
     if (user.kycStatus === 'PENDING') {
@@ -362,7 +363,7 @@ class ProfileService {
       where: { userId },
       select: {
         id: true,
-        userAgent: true,
+        // userAgent: true, // TODO: Add userAgent field to Session model in Prisma schema
         ipAddress: true,
         createdAt: true,
         expiresAt: true,
@@ -421,7 +422,7 @@ class ProfileService {
   async getActivityLogs(userId: string, limit: number = 100) {
     return await prisma.auditLog.findMany({
       where: { userId },
-      orderBy: { timestamp: 'desc' },
+      orderBy: { createdAt: 'desc' }, // Changed from timestamp to createdAt
       take: limit,
     });
   }

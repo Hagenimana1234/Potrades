@@ -216,7 +216,8 @@ export class WalletService {
       }
 
       const currentBalance = new Decimal(wallet.balance.toString());
-      const lockedBalance = new Decimal(wallet.lockedBalance.toString());
+      // Locked balance calculation for future use
+// const lockedBalance = new Decimal(wallet.lockedBalance.toString());
       const availableBalance = currentBalance;
 
       if (availableBalance.lessThan(amountDecimal)) {

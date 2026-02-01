@@ -1,5 +1,5 @@
-import { PrismaClient, Prisma, SavingsPlanType, SavingsDepositStatus } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { PrismaClient, Prisma } from '@prisma/client';
+
 import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
 import walletService from './wallet.service';
 
@@ -137,8 +137,17 @@ class SavingsService {
 
     // Create the deposit within a transaction
     const deposit = await prisma.$transaction(async (tx) => {
-      // Deduct from user's wallet
-      await walletService.deductFromWallet(userId, 'TRADING', amount);
+      // Deduct from user's wallet (wallet service handles transaction creation)
+      const wallet = await walletService.getWallet(userId, 'REAL');
+      await walletService.debitWallet(
+        userId,
+        wallet.id,
+        amount,
+        'WITHDRAWAL',
+        'Savings deposit',
+        undefined,
+        { planId, planName: plan.name }
+      );
 
       // Create savings deposit
       const newDeposit = await tx.savingsDeposit.create({
@@ -154,20 +163,6 @@ class SavingsService {
         },
         include: {
           plan: true,
-        },
-      });
-
-      // Create transaction record
-      await tx.transaction.create({
-        data: {
-          userId,
-          type: 'SAVINGS_DEPOSIT',
-          amount: amount,
-          status: 'COMPLETED',
-          metadata: {
-            savingsDepositId: newDeposit.id,
-            planName: plan.name,
-          },
         },
       });
 
@@ -248,26 +243,24 @@ class SavingsService {
         },
       });
 
-      // Add to user's wallet
-      await walletService.addToWallet(userId, 'TRADING', withdrawalAmount);
-
-      // Create transaction record
-      await tx.transaction.create({
-        data: {
-          userId,
-          type: 'SAVINGS_WITHDRAWAL',
-          amount: withdrawalAmount,
-          status: 'COMPLETED',
-          metadata: {
-            savingsDepositId: depositId,
-            principal: Number(deposit.principal),
-            interest: currentInterest,
-            totalValue,
-            earlyWithdrawal: isEarlyWithdrawal,
-            penaltyAmount,
-          },
-        },
-      });
+      // Add to user's wallet (wallet service handles transaction creation)
+      const wallet = await walletService.getWallet(userId, 'REAL');
+      await walletService.creditWallet(
+        userId,
+        wallet.id,
+        withdrawalAmount,
+        'DEPOSIT',
+        'Savings withdrawal',
+        undefined,
+        {
+          savingsDepositId: depositId,
+          principal: Number(deposit.principal),
+          interest: currentInterest,
+          totalValue,
+          earlyWithdrawal: isEarlyWithdrawal,
+          penaltyAmount,
+        }
+      );
 
       return {
         withdrawalAmount,
