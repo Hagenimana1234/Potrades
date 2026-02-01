@@ -6,7 +6,7 @@ import {
   NotFoundError,
   ValidationError,
   ConflictError,
-  _InsufficientBalanceError,
+  InsufficientBalanceError,
 } from '../utils/errors';
 import { CopyTraderStatus, CopyRelationshipStatus, WalletType } from '@prisma/client';
 import { Decimal } from 'decimal.js';

@@ -5,7 +5,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
-  _generateRandomToken,
+  generateRandomToken,
   generateReferralCode,
 } from '../utils/crypto';
 import {

@@ -1,6 +1,6 @@
-import { PrismaClient, Prisma, _SavingsPlanType, SavingsDepositStatus } from '@prisma/client';
+import { PrismaClient, Prisma, SavingsPlanType, SavingsDepositStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { NotFoundError, ValidationError, UnauthorizedError } from '../utils/errors';
+import { NotFoundError, ValidationError } from '../utils/errors';
 import walletService from './wallet.service';
 
 const prisma = new PrismaClient();
@@ -201,7 +201,7 @@ class SavingsService {
     }
 
     if (deposit.userId !== userId) {
-      throw new UnauthorizedError('Unauthorized access to savings deposit');
+      throw new AuthorizationError('Unauthorized access to savings deposit');
     }
 
     if (deposit.status !== 'ACTIVE') {
