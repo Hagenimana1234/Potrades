@@ -450,6 +450,56 @@ class MarketDataService extends EventEmitter {
   }
 
   /**
+   * ==================== SYNTHETIC PRICE TRANSFORMATION ====================
+   * Apply POL spread to external historical candles
+   * CRITICAL: Maintains core philosophy - no raw external prices to users
+   */
+
+  /**
+   * Apply synthetic spread to historical candles from external APIs
+   * Uses the asset's configured spread from OTC pricing config
+   */
+  private async applySyntheticSpread(assetId: string, candles: Candle[]): Promise<Candle[]> {
+    try {
+      // Get the asset's OTC pricing configuration
+      const pricingConfig = await prisma.oTCPricingConfig.findUnique({
+        where: { assetId },
+      });
+
+      if (!pricingConfig) {
+        logger.warn(`No pricing config for asset ${assetId}, using default spread`);
+        // Apply default 0.1% spread if no config
+        return this.applySpreadToCandles(candles, 0.1);
+      }
+
+      const spreadPercent = pricingConfig.spreadPercent.toNumber();
+      logger.debug(`Applying ${spreadPercent}% spread to historical candles`);
+
+      return this.applySpreadToCandles(candles, spreadPercent);
+    } catch (error: any) {
+      logger.error(`Error applying synthetic spread: ${error.message}`);
+      // Return candles with minimal spread rather than raw
+      return this.applySpreadToCandles(candles, 0.1);
+    }
+  }
+
+  /**
+   * Apply spread percentage to all OHLC values in candles
+   */
+  private applySpreadToCandles(candles: Candle[], spreadPercent: number): Candle[] {
+    const spreadMultiplier = 1 + spreadPercent / 100;
+
+    return candles.map((candle) => ({
+      timestamp: candle.timestamp,
+      open: candle.open * spreadMultiplier,
+      high: candle.high * spreadMultiplier,
+      low: candle.low * spreadMultiplier,
+      close: candle.close * spreadMultiplier,
+      volume: candle.volume,
+    }));
+  }
+
+  /**
    * ==================== HISTORICAL CANDLES FROM EXTERNAL APIS ====================
    * Fetch historical candles from Binance (crypto) and Twelve Data (forex)
    */
@@ -635,10 +685,11 @@ class MarketDataService extends EventEmitter {
       candles = await this.getTwelveDataHistoricalCandles(asset.symbol, tdInterval, limit);
     }
 
-    // If external API returned data, return it
+    // If external API returned data, apply synthetic spread before returning
     if (candles.length > 0) {
-      logger.debug(`Returning ${candles.length} candles from external API for ${asset.symbol}`);
-      return candles;
+      logger.debug(`Applying synthetic spread to ${candles.length} external candles for ${asset.symbol}`);
+      const syntheticCandles = await this.applySyntheticSpread(assetId, candles);
+      return syntheticCandles;
     }
 
     // Fallback: Generate from database prices
